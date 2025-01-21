@@ -36,8 +36,11 @@ class Program
         var host = Host.CreateDefaultBuilder(args)
             .ConfigureServices((context, services) =>
             {
+                services.AddMemoryCache();
+
                 services.AddSingleton(csharpConfig);
-                services.AddSingleton(new LockingService());
+                services.AddSingleton<LockingService>();
+                services.AddSingleton<SqlTableCachingService>();
 
                 services.AddTransient<SqlDalRepositoryScaffold>();
                 services.AddTransient<SqlScriptFileScaffold>();

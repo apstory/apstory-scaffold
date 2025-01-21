@@ -1,5 +1,6 @@
 ﻿using Apstory.Scaffold.Domain.Parser;
 using Apstory.Scaffold.Domain.Scaffold;
+using Apstory.Scaffold.Domain.Service;
 using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model.Config;
 using Apstory.Scaffold.Model.Sql;
@@ -11,6 +12,7 @@ namespace Apstory.Scaffold.App.Worker
     public class SqlScaffoldWorker : BackgroundService
     {
         private readonly CSharpConfig _csharpConfig;
+        private readonly SqlTableCachingService _sqlTableCachingService;
         private readonly SqlDalRepositoryScaffold _sqlDalRepositoryScaffold;
         private readonly SqlScriptFileScaffold _sqlScriptFileScaffold;
         private readonly SqlModelScaffold _sqlModelScaffold;
@@ -22,6 +24,7 @@ namespace Apstory.Scaffold.App.Worker
         private static readonly TimeSpan _debounceTime = TimeSpan.FromMilliseconds(50);
 
         public SqlScaffoldWorker(CSharpConfig csharpConfig,
+                                 SqlTableCachingService sqlTableCachingService,
                                  SqlDalRepositoryScaffold sqlDalRepositoryScaffold,
                                  SqlScriptFileScaffold sqlScriptFileScaffold,
                                  SqlModelScaffold sqlModelScaffold,
@@ -30,6 +33,7 @@ namespace Apstory.Scaffold.App.Worker
                                  SqlDomainServiceInterfaceScaffold sqlDomainServiceInterfaceScaffold)
         {
             _csharpConfig = csharpConfig;
+            _sqlTableCachingService = sqlTableCachingService;
             _sqlDalRepositoryScaffold = sqlDalRepositoryScaffold;
             _sqlScriptFileScaffold = sqlScriptFileScaffold;
             _sqlModelScaffold = sqlModelScaffold;
@@ -132,16 +136,25 @@ namespace Apstory.Scaffold.App.Worker
                 if (changeType == WatcherChangeTypes.Created ||
                     changeType == WatcherChangeTypes.Changed)
                 {
+                    var fileName = Path.GetFileName(filePath);
                     string sqlProcDefinition = FileUtils.SafeReadAllText(filePath);
-                    Logger.LogDebug($"Read [{Path.GetFileName(filePath)}]");
+                    Logger.LogDebug($"Read [{fileName}]");
 
                     var procInfo = SqlProcedureParser.Parse(sqlProcDefinition);
-                    Logger.LogDebug($"Parsed [{Path.GetFileName(filePath)}]");
+                    Logger.LogDebug($"Parsed [{fileName}]");
 
+                    var tableName = fileName.Replace("zgen_", string.Empty).Split("_")[0];
+                    var directory = Directory.GetParent(Path.GetDirectoryName(filePath));
+                    var tablePath = Path.Combine(directory.FullName, "Tables", tableName);
+                    var tableInfo = _sqlTableCachingService.GetCachedTable(tablePath);
+                    
                     await _sqlDalRepositoryScaffold.GenerateCode(procInfo);
                     await _sqlDalRepositoryInterfaceScaffold.GenerateCode(procInfo);
                     await _sqlDomainServiceScaffold.GenerateCode(procInfo);
                     await _sqlDomainServiceInterfaceScaffold.GenerateCode(procInfo);
+
+                    //TODO: _sqlForeignDomainServiceScaffold.GenerateCode(tableInfo, procInfo);
+                    //TODO: _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(tableInfo, procInfo);
                 }
 
                 if (changeType == WatcherChangeTypes.Deleted)
@@ -168,11 +181,7 @@ namespace Apstory.Scaffold.App.Worker
             if (e.ChangeType == WatcherChangeTypes.Created ||
                 e.ChangeType == WatcherChangeTypes.Changed)
             {
-                var sqlTableDefinition = File.ReadAllText(e.FullPath);
-                Logger.LogDebug($"Read [{Path.GetFileName(e.FullPath)}]");
-
-                var tableInfo = SqlTableParser.Parse(sqlTableDefinition);
-                Logger.LogDebug($"Parsed [{Path.GetFileName(e.FullPath)}]");
+                var tableInfo = _sqlTableCachingService.GetLatestTableAndCache(e.FullPath);
 
                 await _sqlModelScaffold.GenerateCode(tableInfo);
                 _sqlScriptFileScaffold.GenerateCode(tableInfo);
@@ -180,6 +189,8 @@ namespace Apstory.Scaffold.App.Worker
 
             if (e.ChangeType == WatcherChangeTypes.Deleted)
             {
+                _sqlTableCachingService.RemoveCached(e.FullPath);
+
                 var fileName = Path.GetFileName(e.FullPath);
                 var tableInfo = new SqlTable();
 
