@@ -20,6 +20,9 @@ namespace Apstory.Scaffold.App.Worker
         private readonly SqlDomainServiceScaffold _sqlDomainServiceScaffold;
         private readonly SqlDomainServiceInterfaceScaffold _sqlDomainServiceInterfaceScaffold;
 
+        private readonly SqlForeignDomainServiceScaffold _sqlForeignDomainServiceScaffold;
+        private readonly SqlForeignDomainServiceInterfaceScaffold _sqlForeignDomainServiceInterfaceScaffold;
+
         private static readonly ConcurrentDictionary<string, Timer> _debounceTimers = new ConcurrentDictionary<string, Timer>();
         private static readonly TimeSpan _debounceTime = TimeSpan.FromMilliseconds(50);
 
@@ -30,7 +33,9 @@ namespace Apstory.Scaffold.App.Worker
                                  SqlModelScaffold sqlModelScaffold,
                                  SqlDalRepositoryInterfaceScaffold sqlDalRepositoryInterfaceScaffold,
                                  SqlDomainServiceScaffold sqlDomainServiceScaffold,
-                                 SqlDomainServiceInterfaceScaffold sqlDomainServiceInterfaceScaffold)
+                                 SqlDomainServiceInterfaceScaffold sqlDomainServiceInterfaceScaffold,
+                                 SqlForeignDomainServiceScaffold sqlForeignDomainServiceScaffold,
+                                 SqlForeignDomainServiceInterfaceScaffold sqlForeignDomainServiceInterfaceScaffold)
         {
             _csharpConfig = csharpConfig;
             _sqlTableCachingService = sqlTableCachingService;
@@ -40,6 +45,8 @@ namespace Apstory.Scaffold.App.Worker
             _sqlDalRepositoryInterfaceScaffold = sqlDalRepositoryInterfaceScaffold;
             _sqlDomainServiceScaffold = sqlDomainServiceScaffold;
             _sqlDomainServiceInterfaceScaffold = sqlDomainServiceInterfaceScaffold;
+            _sqlForeignDomainServiceScaffold = sqlForeignDomainServiceScaffold;
+            _sqlForeignDomainServiceInterfaceScaffold = sqlForeignDomainServiceInterfaceScaffold;
         }
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -140,21 +147,21 @@ namespace Apstory.Scaffold.App.Worker
                     string sqlProcDefinition = FileUtils.SafeReadAllText(filePath);
                     Logger.LogDebug($"Read [{fileName}]");
 
-                    var procInfo = SqlProcedureParser.Parse(sqlProcDefinition);
+                    var sqlStoredProcedureInfo = SqlProcedureParser.Parse(sqlProcDefinition);
                     Logger.LogDebug($"Parsed [{fileName}]");
 
                     var tableName = fileName.Replace("zgen_", string.Empty).Split("_")[0];
                     var directory = Directory.GetParent(Path.GetDirectoryName(filePath));
-                    var tablePath = Path.Combine(directory.FullName, "Tables", tableName);
-                    var tableInfo = _sqlTableCachingService.GetCachedTable(tablePath);
-                    
-                    await _sqlDalRepositoryScaffold.GenerateCode(procInfo);
-                    await _sqlDalRepositoryInterfaceScaffold.GenerateCode(procInfo);
-                    await _sqlDomainServiceScaffold.GenerateCode(procInfo);
-                    await _sqlDomainServiceInterfaceScaffold.GenerateCode(procInfo);
+                    var tablePath = Path.Combine(directory.FullName, "Tables", $"{tableName}.sql");
+                    var sqlTableInfo = _sqlTableCachingService.GetCachedTable(tablePath);
 
-                    //TODO: _sqlForeignDomainServiceScaffold.GenerateCode(tableInfo, procInfo);
-                    //TODO: _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(tableInfo, procInfo);
+                    await _sqlDalRepositoryScaffold.GenerateCode(sqlStoredProcedureInfo);
+                    await _sqlDalRepositoryInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
+                    await _sqlDomainServiceScaffold.GenerateCode(sqlStoredProcedureInfo);
+                    await _sqlDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
+
+                    await _sqlForeignDomainServiceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedureInfo);
+                    await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
                 }
 
                 if (changeType == WatcherChangeTypes.Deleted)
@@ -170,6 +177,9 @@ namespace Apstory.Scaffold.App.Worker
                     await _sqlDalRepositoryInterfaceScaffold.DeleteCode(procInfo);
                     await _sqlDomainServiceScaffold.DeleteCode(procInfo);
                     await _sqlDomainServiceInterfaceScaffold.DeleteCode(procInfo);
+
+                    await _sqlForeignDomainServiceScaffold.DeleteCode(procInfo);
+                    await _sqlForeignDomainServiceInterfaceScaffold.DeleteCode(procInfo);
                 }
             });
         }

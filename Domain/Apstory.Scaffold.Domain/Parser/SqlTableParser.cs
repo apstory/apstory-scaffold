@@ -1,4 +1,5 @@
-﻿using Apstory.Scaffold.Model.Sql;
+﻿using Apstory.Scaffold.Model.Enum;
+using Apstory.Scaffold.Model.Sql;
 using System.Text.RegularExpressions;
 
 namespace Apstory.Scaffold.Domain.Parser
@@ -48,14 +49,19 @@ namespace Apstory.Scaffold.Domain.Parser
             var constraintMatches = constraintRegex.Matches(sql);
             foreach (Match match in constraintMatches)
             {
+                ConstraintType constraintType;
+                var normalizedConstraint = match.Groups[2].Value.Replace(" ", string.Empty);
+                if (!Enum.TryParse(normalizedConstraint, true, out constraintType))
+                    throw new Exception($"Unknown constraint type: '{normalizedConstraint}'");
+
                 var tableConstraint = new SqlConstraint
                 {
                     ConstraintName = match.Groups[1].Value,
-                    ConstraintType = match.Groups[2].Value,
+                    ConstraintType = constraintType,
                     Column = match.Groups[3].Value
                 };
 
-                if (tableConstraint.ConstraintType.Equals("FOREIGN KEY", StringComparison.InvariantCultureIgnoreCase))
+                if (tableConstraint.ConstraintType == Model.Enum.ConstraintType.ForeignKey)
                 {
                     var fkDetails = foreignConstraintRegex.Match(match.Groups[4].Value);
 

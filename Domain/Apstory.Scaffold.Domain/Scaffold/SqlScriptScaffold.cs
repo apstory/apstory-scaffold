@@ -21,7 +21,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             WriteScriptToDisk(sqlTable, GenerateGetByIdProcedure(sqlTable));
             WriteScriptToDisk(sqlTable, GenerateGetByPrimaryKeyIdsProcedure(sqlTable));
 
-            if (sqlTable.Constraints.Any(s => s.ConstraintType == "FOREIGN KEY"))
+            if (sqlTable.Constraints.Any(s => s.ConstraintType == Model.Enum.ConstraintType.ForeignKey))
             {
                 WriteScriptToDisk(sqlTable, GenerateGetByForeignKeyIdsProcedure(sqlTable));
                 WriteScriptToDisk(sqlTable, GenerateGetByForeignKeyIdsPagingProcedure(sqlTable));

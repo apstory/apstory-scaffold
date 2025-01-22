@@ -1,6 +1,7 @@
 ﻿using Apstory.Scaffold.Domain.Service;
 using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model.Config;
+using Apstory.Scaffold.Model.Enum;
 using Apstory.Scaffold.Model.Sql;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -73,7 +74,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GenerateCSharpModel(SqlTable sqlTable)
         {
-            var primaryConstraint = sqlTable.Constraints.First(s => s.ConstraintType == "PRIMARY KEY");
+            var primaryConstraint = sqlTable.Constraints.First(s => s.ConstraintType == ConstraintType.PrimaryKey);
 
             // Create a class declaration
             var classDeclaration = SyntaxFactory.ClassDeclaration(sqlTable.TableName)
@@ -119,7 +120,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
 
             // Add properties for foreign keys (based on constraints)
-            foreach (var constraint in sqlTable.Constraints.Where(c => c.ConstraintType.Equals("Foreign Key", StringComparison.OrdinalIgnoreCase)))
+            foreach (var constraint in sqlTable.Constraints.Where(c => c.ConstraintType == Model.Enum.ConstraintType.ForeignKey))
             {
                 var fkProperty = SyntaxFactory.PropertyDeclaration(SyntaxFactory.ParseTypeName(constraint.RefTable), constraint.RefTable)
                                               .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))

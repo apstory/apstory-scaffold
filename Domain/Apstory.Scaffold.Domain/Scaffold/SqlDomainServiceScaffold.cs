@@ -22,25 +22,25 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         public async Task DeleteCode(SqlStoredProcedure sqlStoredProcedure)
         {
-            var dalRepositoryPath = GetFilePath(sqlStoredProcedure);
-            await _lockingService.AcquireLockAsync(dalRepositoryPath);
+            var domainServicePath = GetFilePath(sqlStoredProcedure);
+            await _lockingService.AcquireLockAsync(domainServicePath);
 
-            var existingFileContent = FileUtils.SafeReadAllText(dalRepositoryPath);
+            var existingFileContent = FileUtils.SafeReadAllText(domainServicePath);
             var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
 
             var updatedFileContent = RemoveMethodCall(syntaxTree.GetRoot(), sqlStoredProcedure);
             if (string.IsNullOrEmpty(updatedFileContent))
             {
-                File.Delete(dalRepositoryPath);
-                Logger.LogSuccess($"[Deleted Service] {dalRepositoryPath}");
+                File.Delete(domainServicePath);
+                Logger.LogSuccess($"[Deleted Service] {domainServicePath}");
             }
             else
             {
-                FileUtils.WriteTextAndDirectory(dalRepositoryPath, updatedFileContent);
-                Logger.LogSuccess($"[Updated Service] {dalRepositoryPath} removed method {sqlStoredProcedure.StoredProcedureName}");
+                FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
+                Logger.LogSuccess($"[Updated Service] {domainServicePath} removed method {sqlStoredProcedure.StoredProcedureName}");
             }
 
-            _lockingService.ReleaseLock(dalRepositoryPath);
+            _lockingService.ReleaseLock(domainServicePath);
         }
 
         public async Task GenerateCode(SqlStoredProcedure sqlStoredProcedure)

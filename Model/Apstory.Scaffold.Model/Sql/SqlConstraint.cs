@@ -1,9 +1,11 @@
-﻿namespace Apstory.Scaffold.Model.Sql
+﻿using Apstory.Scaffold.Model.Enum;
+
+namespace Apstory.Scaffold.Model.Sql
 {
     public class SqlConstraint
     {
         public string ConstraintName { get; set; }
-        public string ConstraintType { get; set; }
+        public ConstraintType ConstraintType { get; set; }
         public string Column { get; set; }
         public string RefSchema { get; set; }
         public string RefTable { get; set; }

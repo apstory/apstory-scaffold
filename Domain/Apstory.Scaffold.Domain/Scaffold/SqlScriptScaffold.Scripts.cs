@@ -153,7 +153,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         public string GenerateGetByPrimaryKeyIdsProcedure(SqlTable table)
         {
-            var primaryKeyConstraint = table.Constraints.FirstOrDefault(c => c.ConstraintType == "PRIMARY KEY");
+            var primaryKeyConstraint = table.Constraints.FirstOrDefault(c => c.ConstraintType == Model.Enum.ConstraintType.PrimaryKey);
             var primaryKey = table.Columns.FirstOrDefault(s => s.ColumnName == primaryKeyConstraint.Column);
 
             var sb = new StringBuilder();
@@ -277,7 +277,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             // Add parameters for filtering by foreign keys and pagination
             var foreignKeyColumns = table.Constraints
-                .Where(c => c.ConstraintType == "FOREIGN KEY")
+                .Where(c => c.ConstraintType == Model.Enum.ConstraintType.ForeignKey)
                 .Select(c => c.Column)
                 .ToList();
 
@@ -413,7 +413,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             // Get the primary key column from the table constraints
             var primaryKeyConstraint = table.Constraints
-                                        .FirstOrDefault(c => c.ConstraintType == "PRIMARY KEY");
+                                        .FirstOrDefault(c => c.ConstraintType == Model.Enum.ConstraintType.PrimaryKey);
 
             var primaryKey = table.Columns.First(s => s.ColumnName == primaryKeyConstraint.Column);
 
@@ -467,13 +467,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private bool IsForeignKey(SqlColumn column, SqlTable table)
         {
             // Check if the column is part of a foreign key constraint (you'll need to adjust this based on how foreign keys are represented in your data)
-            return table.Constraints.Any(c => c.ConstraintType == "FOREIGN KEY" && c.Column == column.ColumnName);
+            return table.Constraints.Any(c => c.ConstraintType == Model.Enum.ConstraintType.ForeignKey && c.Column == column.ColumnName);
         }
 
         private SqlColumn GetPrimaryColumn(SqlTable table)
         {
             // Identify the primary key column
-            var primaryKeyColumn = table.Constraints.FirstOrDefault(c => c.ConstraintType == "PRIMARY KEY")?.Column;
+            var primaryKeyColumn = table.Constraints.FirstOrDefault(c => c.ConstraintType == Model.Enum.ConstraintType.PrimaryKey)?.Column;
             if (primaryKeyColumn == null)
                 throw new InvalidOperationException("No primary key column found for table " + table.TableName);
 
