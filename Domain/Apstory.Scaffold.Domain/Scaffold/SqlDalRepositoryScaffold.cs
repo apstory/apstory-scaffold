@@ -52,7 +52,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             try
             {
                 await _lockingService.AcquireLockAsync(dalRepositoryPath);
-                
+
                 SyntaxNode syntaxNode;
                 if (!File.Exists(dalRepositoryPath))
                 {
@@ -107,6 +107,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var method = classDeclaration.Members
                                          .OfType<MethodDeclarationSyntax>()
                                          .FirstOrDefault(m => m.Identifier.Text == methodName);
+
+            if (method is null)
+                root.NormalizeWhitespace().ToFullString();
 
             var updatedRoot = root.RemoveNode(method, SyntaxRemoveOptions.KeepLeadingTrivia | SyntaxRemoveOptions.KeepTrailingTrivia);
 
@@ -169,8 +172,11 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var root = SyntaxFactory.CompilationUnit()
                                     .AddUsings(
-                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetInterfaceNamespace(sqlStoredProcedure))),
-                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetModelNamespace(sqlStoredProcedure))))
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetDalInterfaceNamespace(sqlStoredProcedure))),
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetModelNamespace(sqlStoredProcedure))),
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Data.SqlClient")),
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Data")),
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Dapper")))
                                     .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDalNamespace(sqlStoredProcedure)))
                                     .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(CreateCSharpClass(sqlStoredProcedure))));
 
@@ -190,6 +196,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var methodName = GetMethodName(sqlStoredProcedure);
             bool hasReturnValues = false;
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
+            bool returnLists = useSeperateParameters;
 
             if (useSeperateParameters)
             {
@@ -208,10 +215,15 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine(")");
             }
             else
-                return $"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()})";
+                sb.Append($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()})");
 
             sb.AppendLine("{");
-            sb.AppendLine($"    List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> ret{sqlStoredProcedure.TableName} = new List<{GetModelNamespace(sqlStoredProcedure)}<{sqlStoredProcedure.TableName}>>();");
+
+            if (returnLists)
+                sb.AppendLine($"    List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> ret{sqlStoredProcedure.TableName} = new List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>();");
+            else
+                sb.AppendLine($"    {GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} ret{sqlStoredProcedure.TableName};");
+
             sb.AppendLine("    DynamicParameters dParams = new DynamicParameters();");
 
             // Append dynamic parameter setup
@@ -224,13 +236,18 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     hasReturnValues = true;
                 }
                 else
-                    sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {(!useSeperateParameters ? $"{sqlStoredProcedure.TableName.ToCamelCase()}." : string.Empty)}{param.ColumnName.ToCamelCase()});");
+                    sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {(!useSeperateParameters ? $"{sqlStoredProcedure.TableName.ToCamelCase()}.{param.ColumnName.ToPascalCase()}" : param.ColumnName.ToCamelCase())});");
             }
 
             sb.AppendLine();
             sb.AppendLine("    using (SqlConnection connection = GetConnection())");
             sb.AppendLine("    {");
-            sb.AppendLine($"        ret{sqlStoredProcedure.TableName} = (await connection.QueryAsync<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>(\"{sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}\", dParams, commandType: System.Data.CommandType.StoredProcedure)).AsList();");
+
+            if (returnLists)
+                sb.AppendLine($"        ret{sqlStoredProcedure.TableName} = (await connection.QueryAsync<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>(\"{sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}\", dParams, commandType: System.Data.CommandType.StoredProcedure)).AsList();");
+            else
+                sb.AppendLine($"        ret{sqlStoredProcedure.TableName} = (await connection.QueryFirstOrDefaultAsync<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>(\"{sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}\", dParams, commandType: System.Data.CommandType.StoredProcedure));");
+
             sb.AppendLine("    }");
             sb.AppendLine();
 
@@ -252,7 +269,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
                                                          .Replace($"{sqlStoredProcedure.TableName}_", "")
                                                          .Replace("GetBy", $"Get{sqlStoredProcedure.TableName}By")
-                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}");
+                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}")
+                                                         .Replace("DelHrd", $"Del{sqlStoredProcedure.TableName}Hrd")
+                                                         .Replace("DelSft", $"Del{sqlStoredProcedure.TableName}Sft");
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)
@@ -275,7 +294,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return _config.Namespaces.DalNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
 
-        private string GetInterfaceNamespace(SqlStoredProcedure sqlStoredProcedure)
+        private string GetDalInterfaceNamespace(SqlStoredProcedure sqlStoredProcedure)
         {
             return _config.Namespaces.DalInterfaceNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }

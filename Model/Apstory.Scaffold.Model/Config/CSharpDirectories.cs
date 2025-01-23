@@ -20,7 +20,7 @@
 
             DomainDirectory = Path.Combine(solutionDirectory, "Domain", $"{rootNamespace}.Domain", "Gen");
             DomainInterfaceDirectory = Path.Combine(solutionDirectory, "Domain", $"{rootNamespace}.Domain.Interface", "Gen");
-            DalDirectory = Path.Combine(solutionDirectory, "Dal", $"{rootNamespace}.Dal", "#SCHEMA#", "Gen");
+            DalDirectory = Path.Combine(solutionDirectory, "Dal", $"{rootNamespace}.Dal.Dapper", "#SCHEMA#", "Gen");
             DalInterfaceDirectory = Path.Combine(solutionDirectory, "Dal", $"{rootNamespace}.Dal.Interface", "#SCHEMA#", "Gen");
         }
     }

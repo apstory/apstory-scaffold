@@ -16,9 +16,9 @@
             ModelNamespace = $"{rootNamespace}.Model.#SCHEMA#";
             CommonNamespace = $"{rootNamespace}.Common";
             DomainNamespace = $"{rootNamespace}.Domain.#SCHEMA#";
-            DalNamespace = $"{rootNamespace}.Dal.#SCHEMA#";
-            DomainInterfaceNamespace = $"{DomainNamespace}.Interface.#SCHEMA#";
-            DalInterfaceNamespace = $"{DalNamespace}.Interface.#SCHEMA#";
+            DalNamespace = $"{rootNamespace}.Dal.Dapper.#SCHEMA#";
+            DomainInterfaceNamespace = $"{rootNamespace}.Domain.Interface.#SCHEMA#";
+            DalInterfaceNamespace = $"{rootNamespace}.Dal.Interface.#SCHEMA#";
         }
     }
 }

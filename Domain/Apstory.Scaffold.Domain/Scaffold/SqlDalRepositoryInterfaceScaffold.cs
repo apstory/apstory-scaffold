@@ -210,7 +210,10 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
                                                          .Replace($"{sqlStoredProcedure.TableName}_", "")
                                                          .Replace("GetBy", $"Get{sqlStoredProcedure.TableName}By")
-                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}");
+                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}")
+                                                         .Replace("DelHrd", $"Del{sqlStoredProcedure.TableName}Hrd")
+                                                         .Replace("DelSft", $"Del{sqlStoredProcedure.TableName}Sft");
+
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)

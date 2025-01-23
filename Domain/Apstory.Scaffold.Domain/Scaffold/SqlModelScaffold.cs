@@ -35,10 +35,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
                 if (!existingModelContent.Equals(fileBody))
                 {
-
                     FileUtils.WriteTextAndDirectory(modelPath, fileBody);
                     Logger.LogSuccess($"[Created Model] {modelPath}");
-
                 }
                 else
                 {
@@ -84,7 +82,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             // Create a class declaration
             var classDeclaration = SyntaxFactory.ClassDeclaration(sqlTable.TableName)
-                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword));
+                                                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                                                              SyntaxFactory.Token(SyntaxKind.PartialKeyword));
 
             var totalRowsColumn = new SqlColumn()
             {

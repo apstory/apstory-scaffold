@@ -199,7 +199,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 .WithBody(SyntaxFactory.Block(SyntaxFactory.SingletonList<StatementSyntax>(
                     SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(
                         SyntaxKind.SimpleAssignmentExpression,
-                        SyntaxFactory.IdentifierName($"_{char.ToLower(sqlStoredProcedure.TableName[0])}{sqlStoredProcedure.TableName.Substring(1)}Repo"),
+                        SyntaxFactory.IdentifierName($"_repo"),
                         SyntaxFactory.IdentifierName("repo"))))));
 
             // Create the class
@@ -259,7 +259,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
                                                          .Replace($"{sqlStoredProcedure.TableName}_", "")
                                                          .Replace("GetBy", $"Get{sqlStoredProcedure.TableName}By")
-                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}");
+                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}")
+                                                         .Replace("DelHrd", $"Del{sqlStoredProcedure.TableName}Hrd")
+                                                         .Replace("DelSft", $"Del{sqlStoredProcedure.TableName}Sft");
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)
