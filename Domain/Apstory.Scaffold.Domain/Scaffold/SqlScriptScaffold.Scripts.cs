@@ -150,7 +150,6 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sb.ToString();
         }
 
-
         public string GenerateGetByPrimaryKeyIdsProcedure(SqlTable table)
         {
             var primaryKeyConstraint = table.Constraints.FirstOrDefault(c => c.ConstraintType == Model.Enum.ConstraintType.PrimaryKey);
@@ -438,6 +437,63 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("    IF @InitialTransCount = 0 BEGIN TRANSACTION @TranName");
             sb.AppendLine();
             sb.AppendLine($"    DELETE FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryKeyConstraint.Column}]=@{primaryKeyConstraint.Column};");
+            sb.AppendLine();
+            sb.AppendLine("    IF @@ERROR <> 0 BEGIN GOTO errorMsg_section END");
+            sb.AppendLine();
+            sb.AppendLine("    IF @InitialTransCount = 0 COMMIT TRANSACTION @TranName");
+            sb.AppendLine("    SET @RetMsg = LTRIM(ISNULL(@RetMsg, '') + 'Successful')");
+            sb.AppendLine("    RETURN 0");
+            sb.AppendLine();
+            sb.AppendLine("  errorMsg_section:");
+            sb.AppendLine("    SET @RetMsg = LTRIM(ISNULL(@RetMsg, '') + ' SQLErrMSG: ' + ISNULL(ERROR_MESSAGE(), ''))");
+            sb.AppendLine("    GOTO error_section");
+            sb.AppendLine();
+            sb.AppendLine("  error_section:");
+            sb.AppendLine("    SET @RetMsg = ISNULL(@RetMsg, '')");
+            sb.AppendLine("    IF @InitialTransCount = 0 ROLLBACK TRANSACTION @TranName");
+            sb.AppendLine("    RETURN 1");
+            sb.AppendLine("  END TRY");
+            sb.AppendLine("  BEGIN CATCH");
+            sb.AppendLine("    IF @InitialTransCount = 0 ROLLBACK TRANSACTION @TranName");
+            sb.AppendLine("    SET @RetMsg = LTRIM(ISNULL(@RetMsg, '') + ' SQLErrMSG: ' + ISNULL(ERROR_MESSAGE(), ''))");
+            sb.AppendLine("    RETURN 1");
+            sb.AppendLine("  END CATCH");
+            sb.Append("END");
+
+            return sb.ToString();
+        }
+
+        public string GenerateDelSftProcedure(SqlTable table)
+        {
+            var sb = new StringBuilder();
+
+            // Get the primary key column from the table constraints
+            var primaryKeyConstraint = table.Constraints
+                                        .FirstOrDefault(c => c.ConstraintType == Model.Enum.ConstraintType.PrimaryKey);
+
+            var primaryKey = table.Columns.First(s => s.ColumnName == primaryKeyConstraint.Column);
+
+            if (primaryKeyConstraint == null)
+            {
+                throw new Exception("Table does not have a primary key constraint.");
+            }
+
+            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_DelSft] ******/");
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine($"-- Description    : Soft Delete {table.TableName}");
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine();
+            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_DelSft]");
+            sb.AppendLine($"  (@{primaryKeyConstraint.Column} {primaryKey.DataType.ToLower()}, @RetMsg NVARCHAR(MAX) OUTPUT)");
+            sb.AppendLine("AS");
+            sb.AppendLine("BEGIN");
+            sb.AppendLine("  DECLARE @InitialTransCount INT = @@TRANCOUNT;");
+            sb.AppendLine("  DECLARE @TranName varchar(32) = OBJECT_NAME(@@PROCID);");
+            sb.AppendLine();
+            sb.AppendLine("  BEGIN TRY");
+            sb.AppendLine("    IF @InitialTransCount = 0 BEGIN TRANSACTION @TranName");
+            sb.AppendLine();
+            sb.AppendLine($"    UPDATE [{table.Schema}].[{table.TableName}] SET IsActive = 0 WHERE [{primaryKeyConstraint.Column}]=@{primaryKeyConstraint.Column};");
             sb.AppendLine();
             sb.AppendLine("    IF @@ERROR <> 0 BEGIN GOTO errorMsg_section END");
             sb.AppendLine();

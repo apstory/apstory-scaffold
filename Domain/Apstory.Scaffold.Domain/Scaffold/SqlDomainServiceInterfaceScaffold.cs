@@ -184,18 +184,22 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var methodName = GetMethodName(sqlStoredProcedure);
 
+            bool returnsData = !methodName.StartsWith("Del");
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
             if (useSeperateParameters)
             {
                 var sb = new StringBuilder();
-                sb.Append($"Task<List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+                if (returnsData)
+                    sb.Append($"Task<List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+                else
+                    sb.Append($"Task {methodName}(");
 
                 foreach (var param in sqlStoredProcedure.Parameters)
                     if (!param.ColumnName.Equals("RetMsg", StringComparison.OrdinalIgnoreCase))
                         if (!string.IsNullOrEmpty(param.DefaultValue))
-                            sb.Append($"{param.ToCSharpTypeString(true)} {param.ColumnName.ToCamelCase()} = \"{param.DefaultValue}\",");
+                            sb.Append($"{param.ToCSharpTypeString(returnsData)} {param.ColumnName.ToCamelCase()} = \"{param.DefaultValue}\",");
                         else
-                            sb.Append($"{param.ToCSharpTypeString(true)} {param.ColumnName.ToCamelCase()},");
+                            sb.Append($"{param.ToCSharpTypeString(returnsData)} {param.ColumnName.ToCamelCase()},");
 
                 sb.Remove(sb.Length - 1, 1);
                 sb.AppendLine(");");

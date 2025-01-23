@@ -23,6 +23,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             await WriteScriptToDisk(sqlTable, GenerateInsertUpdateProcedure(sqlTable));
             await WriteScriptToDisk(sqlTable, GenerateDelHrdProcedure(sqlTable));
+            await WriteScriptToDisk(sqlTable, GenerateDelSftProcedure(sqlTable));
             await WriteScriptToDisk(sqlTable, GenerateGetByIdProcedure(sqlTable));
             await WriteScriptToDisk(sqlTable, GenerateGetByPrimaryKeyIdsProcedure(sqlTable));
 
