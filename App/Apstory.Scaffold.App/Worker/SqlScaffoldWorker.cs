@@ -11,6 +11,9 @@ namespace Apstory.Scaffold.App.Worker
 {
     public class SqlScaffoldWorker : BackgroundService
     {
+        private static readonly ConcurrentDictionary<string, CancellationTokenSource> _debounceCancellations = new ConcurrentDictionary<string, CancellationTokenSource>();
+        private static readonly TimeSpan _debounceTime = TimeSpan.FromMilliseconds(150);
+
         private readonly CSharpConfig _csharpConfig;
         private readonly SqlTableCachingService _sqlTableCachingService;
         private readonly SqlDalRepositoryScaffold _sqlDalRepositoryScaffold;
@@ -19,12 +22,11 @@ namespace Apstory.Scaffold.App.Worker
         private readonly SqlDalRepositoryInterfaceScaffold _sqlDalRepositoryInterfaceScaffold;
         private readonly SqlDomainServiceScaffold _sqlDomainServiceScaffold;
         private readonly SqlDomainServiceInterfaceScaffold _sqlDomainServiceInterfaceScaffold;
-
         private readonly SqlForeignDomainServiceScaffold _sqlForeignDomainServiceScaffold;
         private readonly SqlForeignDomainServiceInterfaceScaffold _sqlForeignDomainServiceInterfaceScaffold;
 
-        private static readonly ConcurrentDictionary<string, Timer> _debounceTimers = new ConcurrentDictionary<string, Timer>();
-        private static readonly TimeSpan _debounceTime = TimeSpan.FromMilliseconds(50);
+        private FileSystemWatcher tableWatcher;
+        private FileSystemWatcher storedProcecdureWatcher;
 
         public SqlScaffoldWorker(CSharpConfig csharpConfig,
                                  SqlTableCachingService sqlTableCachingService,
@@ -81,64 +83,78 @@ namespace Apstory.Scaffold.App.Worker
         {
             Logger.LogInfo($"Watching tables folder: {folderPath}");
 
-            FileSystemWatcher watcher = new FileSystemWatcher(folderPath, "*.sql")
+            tableWatcher = new FileSystemWatcher(folderPath, "*.sql")
             {
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
                 IncludeSubdirectories = false
             };
 
-            watcher.Changed += OnSqlTableFileChanged;
-            watcher.Created += OnSqlTableFileChanged;
-            watcher.Deleted += OnSqlTableFileChanged;
+            tableWatcher.Changed += OnSqlTableFileChanged;
+            tableWatcher.Created += OnSqlTableFileChanged;
+            tableWatcher.Deleted += OnSqlTableFileChanged;
 
-            watcher.EnableRaisingEvents = true;
+            tableWatcher.EnableRaisingEvents = true;
         }
 
         private void SetupSqlProcsWatcher(string folderPath)
         {
             Logger.LogInfo($"Watching procs folder: {folderPath}");
 
-            FileSystemWatcher watcher = new FileSystemWatcher(folderPath, "*.sql")
+            storedProcecdureWatcher = new FileSystemWatcher(folderPath, "*.sql")
             {
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
                 IncludeSubdirectories = false
             };
 
-            watcher.Changed += OnSqlProcFileChanged;
-            watcher.Created += OnSqlProcFileChanged;
-            watcher.Deleted += OnSqlProcFileChanged;
+            storedProcecdureWatcher.Changed += OnSqlProcFileChanged;
+            storedProcecdureWatcher.Created += OnSqlProcFileChanged;
+            storedProcecdureWatcher.Deleted += OnSqlProcFileChanged;
 
-            watcher.EnableRaisingEvents = true;
+            storedProcecdureWatcher.EnableRaisingEvents = true;
         }
 
         private async void OnSqlProcFileChanged(object sender, FileSystemEventArgs e)
         {
-            var timer = _debounceTimers.AddOrUpdate(e.FullPath, _ => CreateTimer(e.ChangeType, e.FullPath),
-                (_, existingTimer) =>
-                {
-                    existingTimer.Change(_debounceTime, Timeout.InfiniteTimeSpan);
-                    return existingTimer;
-                }
-            );
-        }
+            // Cancel the existing debounce task if it exists
+            if (_debounceCancellations.TryGetValue(e.FullPath, out var existingCts))
+                existingCts.Cancel();
 
-        private Timer CreateTimer(WatcherChangeTypes changeType, string filePath)
-        {
-            return new Timer(_ =>
+            // Create a new CancellationTokenSource for this debounce
+            var cts = new CancellationTokenSource();
+            _debounceCancellations[e.FullPath] = cts;
+
+            try
             {
-                // This block is executed when the debounce time expires
-                HandleStoredProcedureChange(changeType, filePath);
+                // Wait for the debounce time to expire
+                await Task.Delay(_debounceTime, cts.Token);
 
-                // Remove the timer after it's triggered
-                _debounceTimers.TryRemove(filePath, out var _);
-            }, null, _debounceTime, Timeout.InfiniteTimeSpan);
+                // Execute the action only if the debounce was not canceled
+                await HandleStoredProcedureChange(e.ChangeType, e.FullPath);
+                
+            }
+            catch (TaskCanceledException)
+            {
+                // The debounce was canceled; this is expected, so ignore it
+            }
+            catch (Exception ex)
+            {
+
+            }
+            finally
+            {
+                // Clean up the completed debounce
+                _debounceCancellations.TryRemove(e.FullPath, out _);
+                cts.Dispose();
+            }
+
+            Logger.LogInfo($"[DONE DEBOUNCE] {e.FullPath}");
         }
 
-        private async void HandleStoredProcedureChange(WatcherChangeTypes changeType, string filePath)
+        private async Task HandleStoredProcedureChange(WatcherChangeTypes changeType, string filePath)
         {
             Logger.LogInfo($"[Changed Stored Procedure] {filePath}");
 
-            await Task.Run(async () =>
+            try
             {
                 if (changeType == WatcherChangeTypes.Created ||
                     changeType == WatcherChangeTypes.Changed)
@@ -159,7 +175,6 @@ namespace Apstory.Scaffold.App.Worker
                     await _sqlDalRepositoryInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
                     await _sqlDomainServiceScaffold.GenerateCode(sqlStoredProcedureInfo);
                     await _sqlDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
-
                     await _sqlForeignDomainServiceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedureInfo);
                     await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
                 }
@@ -181,35 +196,50 @@ namespace Apstory.Scaffold.App.Worker
                     await _sqlForeignDomainServiceScaffold.DeleteCode(procInfo);
                     await _sqlForeignDomainServiceInterfaceScaffold.DeleteCode(procInfo);
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Error Stored Procedure] {filePath}, {ex.Message}");
+            }
+
+            Logger.LogInfo($"[DONE Stored Procedure] {filePath}");
         }
 
         private async void OnSqlTableFileChanged(object sender, FileSystemEventArgs e)
         {
             Logger.LogInfo($"[{e.ChangeType} Table] {e.FullPath}");
 
-            if (e.ChangeType == WatcherChangeTypes.Created ||
-                e.ChangeType == WatcherChangeTypes.Changed)
+            try
             {
-                var tableInfo = _sqlTableCachingService.GetLatestTableAndCache(e.FullPath);
+                if (e.ChangeType == WatcherChangeTypes.Created ||
+                    e.ChangeType == WatcherChangeTypes.Changed)
+                {
+                    var tableInfo = _sqlTableCachingService.GetLatestTableAndCache(e.FullPath);
 
-                await _sqlModelScaffold.GenerateCode(tableInfo);
-                _sqlScriptFileScaffold.GenerateCode(tableInfo);
+                    await _sqlModelScaffold.GenerateCode(tableInfo);
+                    await _sqlScriptFileScaffold.GenerateCode(tableInfo);
+                }
+
+                if (e.ChangeType == WatcherChangeTypes.Deleted)
+                {
+                    _sqlTableCachingService.RemoveCached(e.FullPath);
+
+                    var fileName = Path.GetFileName(e.FullPath);
+                    var tableInfo = new SqlTable();
+
+                    tableInfo.TableName = fileName.Replace(".sql", string.Empty);
+                    tableInfo.Schema = GetSchemaFromPath(e.FullPath);
+
+                    await _sqlModelScaffold.DeleteCode(tableInfo);
+                    _sqlScriptFileScaffold.DeleteCode(tableInfo);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Error Table] {e.FullPath}, {ex.Message}");
             }
 
-            if (e.ChangeType == WatcherChangeTypes.Deleted)
-            {
-                _sqlTableCachingService.RemoveCached(e.FullPath);
-
-                var fileName = Path.GetFileName(e.FullPath);
-                var tableInfo = new SqlTable();
-
-                tableInfo.TableName = fileName.Replace(".sql", string.Empty);
-                tableInfo.Schema = GetSchemaFromPath(e.FullPath);
-
-                await _sqlModelScaffold.DeleteCode(tableInfo);
-                _sqlScriptFileScaffold.DeleteCode(tableInfo);
-            }
+            Logger.LogInfo($"[DONE Table] {e.FullPath}");
         }
 
         private string GetSchemaFromPath(string path)

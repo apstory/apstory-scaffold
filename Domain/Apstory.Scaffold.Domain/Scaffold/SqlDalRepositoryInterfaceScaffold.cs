@@ -49,38 +49,47 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var dalInterfacePath = GetFilePath(sqlStoredProcedure);
             var existingFileContent = string.Empty;
 
-            await _lockingService.AcquireLockAsync(dalInterfacePath);
+            try
+            {
+                await _lockingService.AcquireLockAsync(dalInterfacePath);
 
-            SyntaxNode syntaxNode;
-            if (!File.Exists(dalInterfacePath))
-            {
-                Logger.LogWarn($"[File does not exist] Creating {dalInterfacePath}");
-                syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
-            }
-            else
-            {
-                existingFileContent = FileUtils.SafeReadAllText(dalInterfacePath);
-                var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
-                syntaxNode = syntaxTree.GetRoot();
-            }
+                SyntaxNode syntaxNode;
+                if (!File.Exists(dalInterfacePath))
+                {
+                    Logger.LogWarn($"[File does not exist] Creating {dalInterfacePath}");
+                    syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
+                }
+                else
+                {
+                    existingFileContent = FileUtils.SafeReadAllText(dalInterfacePath);
+                    var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+                    syntaxNode = syntaxTree.GetRoot();
+                }
 
-            var updatedFileContent = CreateOrUpdateMethod(syntaxNode, sqlStoredProcedure, methodBody);
-            if (!existingFileContent.Equals(updatedFileContent))
-            {
-                FileUtils.WriteTextAndDirectory(dalInterfacePath, updatedFileContent);
-                Logger.LogSuccess($"[Created Repository Interface] {dalInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
-            }
-            else
-            {
+                var updatedFileContent = CreateOrUpdateMethod(syntaxNode, sqlStoredProcedure, methodBody);
+                if (!existingFileContent.Equals(updatedFileContent))
+                {
+                    FileUtils.WriteTextAndDirectory(dalInterfacePath, updatedFileContent);
+                    Logger.LogSuccess($"[Created Repository Interface] {dalInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                }
+                else
+                {
 #if DEBUGFORCESCAFFOLD
-                FileUtils.WriteTextAndDirectory(dalInterfacePath, updatedFileContent);
-                Logger.LogSuccess($"[Force Repository Interface] {dalInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                    FileUtils.WriteTextAndDirectory(dalInterfacePath, updatedFileContent);
+                    Logger.LogSuccess($"[Force Repository Interface] {dalInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
 #else
                 Logger.LogSkipped($"[Skipped Repository] Method {sqlStoredProcedure.StoredProcedureName}");
 #endif
+                }
             }
-
-            _lockingService.ReleaseLock(dalInterfacePath);
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Repository Interface] {ex.Message}");
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(dalInterfacePath);
+            }
         }
 
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)

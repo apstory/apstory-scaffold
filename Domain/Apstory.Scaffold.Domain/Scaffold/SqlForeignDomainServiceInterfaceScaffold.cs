@@ -59,38 +59,47 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var domainInterfacePath = GetFilePath(sqlStoredProcedure);
             var existingFileContent = string.Empty;
 
-            await _lockingService.AcquireLockAsync(domainInterfacePath);
+            try
+            {
+                await _lockingService.AcquireLockAsync(domainInterfacePath);
 
-            SyntaxNode syntaxNode;
-            if (!File.Exists(domainInterfacePath))
-            {
-                Logger.LogWarn($"[File does not exist] Creating {domainInterfacePath}");
-                syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
-            }
-            else
-            {
-                existingFileContent = FileUtils.SafeReadAllText(domainInterfacePath);
-                var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
-                syntaxNode = syntaxTree.GetRoot();
-            }
+                SyntaxNode syntaxNode;
+                if (!File.Exists(domainInterfacePath))
+                {
+                    Logger.LogWarn($"[File does not exist] Creating {domainInterfacePath}");
+                    syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
+                }
+                else
+                {
+                    existingFileContent = FileUtils.SafeReadAllText(domainInterfacePath);
+                    var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+                    syntaxNode = syntaxTree.GetRoot();
+                }
 
-            var updatedFileContent = CreateOrUpdateMethod(syntaxNode, sqlStoredProcedure, methodBody);
-            if (!existingFileContent.Equals(updatedFileContent))
-            {
-                FileUtils.WriteTextAndDirectory(domainInterfacePath, updatedFileContent);
-                Logger.LogSuccess($"[Created Service Interface] {domainInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
-            }
-            else
-            {
+                var updatedFileContent = CreateOrUpdateMethod(syntaxNode, sqlStoredProcedure, methodBody);
+                if (!existingFileContent.Equals(updatedFileContent))
+                {
+                    FileUtils.WriteTextAndDirectory(domainInterfacePath, updatedFileContent);
+                    Logger.LogSuccess($"[Created Foreign Service Interface] {domainInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                }
+                else
+                {
 #if DEBUGFORCESCAFFOLD
-                FileUtils.WriteTextAndDirectory(domainInterfacePath, updatedFileContent);
-                Logger.LogSuccess($"[ForceCreated Service Interface] {domainInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                    FileUtils.WriteTextAndDirectory(domainInterfacePath, updatedFileContent);
+                    Logger.LogSuccess($"[Force Created Foreign Service Interface] {domainInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
 #else
                 Logger.LogSkipped($"[Skipped Service Interface] Method {sqlStoredProcedure.StoredProcedureName}");
 #endif
+                }
             }
-
-            _lockingService.ReleaseLock(domainInterfacePath);
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Foreign Service Interface] {ex.Message}");
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(domainInterfacePath);
+            }
         }
 
         private string CreateOrUpdateMethod(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)
@@ -160,7 +169,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GetFilePath(SqlStoredProcedure sqlStoredProcedure)
         {
-            var fileName = $"{GetInterfaceName(sqlStoredProcedure)}.Gen.cs";
+            var fileName = $"{GetInterfaceName(sqlStoredProcedure)}.Foreign.Gen.cs";
             var domainInterfacePath = Path.Combine(_config.Directories.DomainInterfaceDirectory.ToSchemaString(sqlStoredProcedure.Schema), fileName);
             return domainInterfacePath;
         }

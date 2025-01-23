@@ -49,38 +49,47 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var domainServicePath = GetFilePath(sqlStoredProcedure);
             var existingFileContent = string.Empty;
 
-            await _lockingService.AcquireLockAsync(domainServicePath);
+            try
+            {
+                await _lockingService.AcquireLockAsync(domainServicePath);
 
-            SyntaxNode syntaxNode;
-            if (!File.Exists(domainServicePath))
-            {
-                Logger.LogWarn($"[File does not exist] Creating {domainServicePath}");
-                syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
-            }
-            else
-            {
-                existingFileContent = FileUtils.SafeReadAllText(domainServicePath);
-                var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
-                syntaxNode = syntaxTree.GetRoot();
-            }
+                SyntaxNode syntaxNode;
+                if (!File.Exists(domainServicePath))
+                {
+                    Logger.LogWarn($"[File does not exist] Creating {domainServicePath}");
+                    syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
+                }
+                else
+                {
+                    existingFileContent = FileUtils.SafeReadAllText(domainServicePath);
+                    var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+                    syntaxNode = syntaxTree.GetRoot();
+                }
 
-            var updatedFileContent = CreateOrUpdateMethod(syntaxNode, sqlStoredProcedure, methodBody);
-            if (!existingFileContent.Equals(updatedFileContent))
-            {
-                FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
-                Logger.LogSuccess($"[Created Service] {domainServicePath} for method {sqlStoredProcedure.StoredProcedureName}");
-            }
-            else
-            {
+                var updatedFileContent = CreateOrUpdateMethod(syntaxNode, sqlStoredProcedure, methodBody);
+                if (!existingFileContent.Equals(updatedFileContent))
+                {
+                    FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
+                    Logger.LogSuccess($"[Created Service] {domainServicePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                }
+                else
+                {
 #if DEBUGFORCESCAFFOLD
-                FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
-                Logger.LogSuccess($"[Force Created Service] {domainServicePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                    FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
+                    Logger.LogSuccess($"[Force Created Service] {domainServicePath} for method {sqlStoredProcedure.StoredProcedureName}");
 #else
                 Logger.LogSkipped($"[Skipped Service] Method {sqlStoredProcedure.StoredProcedureName}");
 #endif
+                }
             }
-
-            _lockingService.ReleaseLock(domainServicePath);
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Service] {ex.Message}");
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(domainServicePath);
+            }
         }
 
         private string CreateOrUpdateMethod(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)

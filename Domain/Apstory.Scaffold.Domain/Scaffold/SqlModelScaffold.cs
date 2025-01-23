@@ -29,29 +29,35 @@ namespace Apstory.Scaffold.Domain.Scaffold
             if (File.Exists(modelPath))
                 existingModelContent = FileUtils.SafeReadAllText(modelPath);
 
-            if (!existingModelContent.Equals(fileBody))
+            try
             {
                 await _lockingService.AcquireLockAsync(modelPath);
 
-                FileUtils.WriteTextAndDirectory(modelPath, fileBody);
-                Logger.LogSuccess($"[Created Model] {modelPath}");
+                if (!existingModelContent.Equals(fileBody))
+                {
 
-                _lockingService.ReleaseLock(modelPath);
-            }
-            else
-            {
+                    FileUtils.WriteTextAndDirectory(modelPath, fileBody);
+                    Logger.LogSuccess($"[Created Model] {modelPath}");
+
+                }
+                else
+                {
 #if DEBUGFORCESCAFFOLD
-                await _lockingService.AcquireLockAsync(modelPath);
-
-                FileUtils.WriteTextAndDirectory(modelPath, fileBody);
-                Logger.LogSuccess($"[Force Created Model] {modelPath}");
-
-                _lockingService.ReleaseLock(modelPath);
+                    FileUtils.WriteTextAndDirectory(modelPath, fileBody);
+                    Logger.LogSuccess($"[Force Created Model] {modelPath}");
 #else
                 Logger.LogSkipped($"[Skipped Model] {modelPath}");
 #endif
+                }
             }
-
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Model] {ex.Message}");
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(modelPath);
+            }
         }
 
         public async Task DeleteCode(SqlTable sqlTable)
