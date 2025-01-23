@@ -5,7 +5,7 @@
         public static string SafeReadAllText(string filePath)
         {
             var fileContent = string.Empty;
-            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var reader = new StreamReader(fileStream))
                 fileContent = reader.ReadToEnd();
 
@@ -19,7 +19,11 @@
                 Directory.CreateDirectory(directoryPath);
 
             // Write the file
-            File.WriteAllText(filePath, fileContents);
+            using (var fileStream = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
+            using (var writer = new StreamWriter(fileStream))
+            {
+                writer.Write(fileContents);
+            }
         }
     }
 }

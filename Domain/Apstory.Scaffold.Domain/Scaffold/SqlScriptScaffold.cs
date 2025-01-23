@@ -72,13 +72,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
                 if (!existingFileContent.Equals(script))
                 {
-                    File.WriteAllText(filePath, script);
+                    FileUtils.WriteTextAndDirectory(filePath, script);
                     Logger.LogSuccess($"[Created SQL Stored Procedure] {filePath}");
                 }
                 else
                 {
 #if DEBUGFORCESCAFFOLD
-                    File.WriteAllText(filePath, script);
+                    FileUtils.WriteTextAndDirectory(filePath, script);
                     Logger.LogSuccess($"[Force Created SQL Stored Procedure] {filePath}");
 #else
                 Logger.LogSkipped($"[Skipped SQL Stored Procedure] {filePath}");

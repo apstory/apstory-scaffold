@@ -25,8 +25,8 @@ namespace Apstory.Scaffold.App.Worker
         private readonly SqlForeignDomainServiceScaffold _sqlForeignDomainServiceScaffold;
         private readonly SqlForeignDomainServiceInterfaceScaffold _sqlForeignDomainServiceInterfaceScaffold;
 
-        private FileSystemWatcher tableWatcher;
-        private FileSystemWatcher storedProcecdureWatcher;
+        private Dictionary<string, FileSystemWatcher> tableWatcher = new();
+        private Dictionary<string, FileSystemWatcher> storedProcecdureWatcher = new();
 
         public SqlScaffoldWorker(CSharpConfig csharpConfig,
                                  SqlTableCachingService sqlTableCachingService,
@@ -61,11 +61,11 @@ namespace Apstory.Scaffold.App.Worker
             {
                 var tablesFolder = Path.Combine(schema, "Tables");
                 if (Directory.Exists(tablesFolder))
-                    SetupSqlTableWatcher(tablesFolder);
+                    SetupSqlTableWatcher(schema, tablesFolder);
 
                 var procsFolder = Path.Combine(schema, "Stored Procedures");
                 if (Directory.Exists(procsFolder))
-                    SetupSqlProcsWatcher(procsFolder);
+                    SetupSqlProcsWatcher(schema, procsFolder);
 
             }
 
@@ -79,38 +79,55 @@ namespace Apstory.Scaffold.App.Worker
             return excludedFolders.Any(folder => relativePath.Split(Path.DirectorySeparatorChar).Contains(folder));
         }
 
-        private void SetupSqlTableWatcher(string folderPath)
+        private void SetupSqlTableWatcher(string schema, string folderPath)
         {
             Logger.LogInfo($"Watching tables folder: {folderPath}");
 
-            tableWatcher = new FileSystemWatcher(folderPath, "*.sql")
+            var watcher = new FileSystemWatcher(folderPath, "*.sql")
             {
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
+                InternalBufferSize = 64 * 1024,
                 IncludeSubdirectories = false
             };
 
-            tableWatcher.Changed += OnSqlTableFileChanged;
-            tableWatcher.Created += OnSqlTableFileChanged;
-            tableWatcher.Deleted += OnSqlTableFileChanged;
+            watcher.Changed += OnSqlTableFileChanged;
+            watcher.Created += OnSqlTableFileChanged;
+            watcher.Deleted += OnSqlTableFileChanged;
+            watcher.Error += TableWatcher_Error;
 
-            tableWatcher.EnableRaisingEvents = true;
+            watcher.EnableRaisingEvents = true;
+
+            tableWatcher[schema] = watcher;
         }
 
-        private void SetupSqlProcsWatcher(string folderPath)
+        private void TableWatcher_Error(object sender, ErrorEventArgs e)
+        {
+            Logger.LogError($"[Table Watcher Error] {e.GetException().Message}");
+        }
+
+        private void SetupSqlProcsWatcher(string schema, string folderPath)
         {
             Logger.LogInfo($"Watching procs folder: {folderPath}");
 
-            storedProcecdureWatcher = new FileSystemWatcher(folderPath, "*.sql")
+            var watcher = new FileSystemWatcher(folderPath, "*.sql")
             {
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
+                InternalBufferSize = 64 * 1024,
                 IncludeSubdirectories = false
             };
 
-            storedProcecdureWatcher.Changed += OnSqlProcFileChanged;
-            storedProcecdureWatcher.Created += OnSqlProcFileChanged;
-            storedProcecdureWatcher.Deleted += OnSqlProcFileChanged;
+            watcher.Changed += OnSqlProcFileChanged;
+            watcher.Created += OnSqlProcFileChanged;
+            watcher.Deleted += OnSqlProcFileChanged;
+            watcher.Error += StoredProcecdureWatcher_Error;
 
-            storedProcecdureWatcher.EnableRaisingEvents = true;
+            watcher.EnableRaisingEvents = true;
+            storedProcecdureWatcher[schema] = watcher;
+        }
+
+        private void StoredProcecdureWatcher_Error(object sender, ErrorEventArgs e)
+        {
+            Logger.LogError($"[Stored Procedure Watcher Error] {e.GetException().Message}");
         }
 
         private async void OnSqlProcFileChanged(object sender, FileSystemEventArgs e)
@@ -130,7 +147,7 @@ namespace Apstory.Scaffold.App.Worker
 
                 // Execute the action only if the debounce was not canceled
                 await HandleStoredProcedureChange(e.ChangeType, e.FullPath);
-                
+
             }
             catch (TaskCanceledException)
             {
