@@ -1,6 +1,7 @@
 ﻿using Apstory.Scaffold.Domain.Service;
 using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model.Config;
+using Apstory.Scaffold.Model.Enum;
 using Apstory.Scaffold.Model.Sql;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -20,8 +21,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             _lockingService = lockingService;
         }
 
-        public async Task DeleteCode(SqlStoredProcedure sqlStoredProcedure)
+        public async Task<ScaffoldResult> DeleteCode(SqlStoredProcedure sqlStoredProcedure)
         {
+            var scaffoldingResult = ScaffoldResult.Updated;
             var dalRepositoryPath = GetFilePath(sqlStoredProcedure);
             await _lockingService.AcquireLockAsync(dalRepositoryPath);
 
@@ -33,6 +35,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 File.Delete(dalRepositoryPath);
                 Logger.LogSuccess($"[Deleted Repository] {dalRepositoryPath}");
+                scaffoldingResult = ScaffoldResult.Deleted;
             }
             else
             {
@@ -41,10 +44,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
 
             _lockingService.ReleaseLock(dalRepositoryPath);
+            return scaffoldingResult;
         }
 
-        public async Task GenerateCode(SqlStoredProcedure sqlStoredProcedure)
+        public async Task<ScaffoldResult> GenerateCode(SqlStoredProcedure sqlStoredProcedure)
         {
+            var scaffoldingResult = ScaffoldResult.Updated;
             var dalRepositoryPath = GetFilePath(sqlStoredProcedure);
             var methodBody = GenerateStoredProcedureMethod(sqlStoredProcedure);
             var existingFileContent = string.Empty;
@@ -56,6 +61,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 SyntaxNode syntaxNode;
                 if (!File.Exists(dalRepositoryPath))
                 {
+                    scaffoldingResult = ScaffoldResult.Created;
                     Logger.LogWarn($"[File does not exist] Creating {dalRepositoryPath}");
                     syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
                 }
@@ -78,7 +84,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     FileUtils.WriteTextAndDirectory(dalRepositoryPath, updatedFileContent);
                     Logger.LogSuccess($"[Force Created Repository] {dalRepositoryPath} for method {sqlStoredProcedure.StoredProcedureName}");
 #else
-                                Logger.LogSkipped($"[Skipped Repository] Method {sqlStoredProcedure.StoredProcedureName}");
+                    Logger.LogSkipped($"[Skipped Repository] Method {sqlStoredProcedure.StoredProcedureName}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
 #endif
                 }
             }
@@ -90,6 +97,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 _lockingService.ReleaseLock(dalRepositoryPath);
             }
+
+            return scaffoldingResult;
         }
 
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)

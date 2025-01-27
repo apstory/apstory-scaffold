@@ -188,9 +188,9 @@ namespace Apstory.Scaffold.App.Worker
                     var tablePath = Path.Combine(directory.FullName, "Tables", $"{tableName}.sql");
                     var sqlTableInfo = _sqlTableCachingService.GetCachedTable(tablePath);
 
-                    await _sqlDalRepositoryScaffold.GenerateCode(sqlStoredProcedureInfo);
+                    var repoResult = await _sqlDalRepositoryScaffold.GenerateCode(sqlStoredProcedureInfo);
                     await _sqlDalRepositoryInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
-                    await _sqlDomainServiceScaffold.GenerateCode(sqlStoredProcedureInfo);
+                    var domainResult = await _sqlDomainServiceScaffold.GenerateCode(sqlStoredProcedureInfo);
                     await _sqlDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
                     await _sqlForeignDomainServiceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedureInfo);
                     await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
@@ -205,11 +205,10 @@ namespace Apstory.Scaffold.App.Worker
                     procInfo.StoredProcedureName = fileName.Replace(".sql", string.Empty);
                     procInfo.Schema = GetSchemaFromPath(filePath);
 
-                    await _sqlDalRepositoryScaffold.DeleteCode(procInfo);
+                    var repoResult = await _sqlDalRepositoryScaffold.DeleteCode(procInfo);
                     await _sqlDalRepositoryInterfaceScaffold.DeleteCode(procInfo);
-                    await _sqlDomainServiceScaffold.DeleteCode(procInfo);
+                    var domainResult = await _sqlDomainServiceScaffold.DeleteCode(procInfo);
                     await _sqlDomainServiceInterfaceScaffold.DeleteCode(procInfo);
-
                     await _sqlForeignDomainServiceScaffold.DeleteCode(procInfo);
                     await _sqlForeignDomainServiceInterfaceScaffold.DeleteCode(procInfo);
                 }
@@ -248,7 +247,7 @@ namespace Apstory.Scaffold.App.Worker
                     tableInfo.Schema = GetSchemaFromPath(e.FullPath);
 
                     await _sqlModelScaffold.DeleteCode(tableInfo);
-                    _sqlScriptFileScaffold.DeleteCode(tableInfo);
+                    await _sqlScriptFileScaffold.DeleteCode(tableInfo);
                 }
             }
             catch (Exception ex)

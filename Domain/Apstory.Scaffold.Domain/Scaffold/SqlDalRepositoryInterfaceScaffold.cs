@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis;
 using System.Text;
 using Apstory.Scaffold.Domain.Service;
+using Apstory.Scaffold.Model.Enum;
 
 namespace Apstory.Scaffold.Domain.Scaffold
 {
@@ -20,8 +21,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             _lockingService = lockingService;
         }
 
-        public async Task DeleteCode(SqlStoredProcedure sqlStoredProcedure)
+        public async Task<ScaffoldResult> DeleteCode(SqlStoredProcedure sqlStoredProcedure)
         {
+            var scaffoldingResult = ScaffoldResult.Updated;
             var dalRepositoryInterfacePath = GetFilePath(sqlStoredProcedure);
             await _lockingService.AcquireLockAsync(dalRepositoryInterfacePath);
 
@@ -31,6 +33,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var updatedFileContent = RemoveMethodCall(syntaxTree.GetRoot(), sqlStoredProcedure);
             if (string.IsNullOrEmpty(updatedFileContent))
             {
+                scaffoldingResult = ScaffoldResult.Deleted;
                 File.Delete(dalRepositoryInterfacePath);
                 Logger.LogSuccess($"[Deleted Repository Interface] {dalRepositoryInterfacePath}");
             }
@@ -41,10 +44,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
 
             _lockingService.ReleaseLock(dalRepositoryInterfacePath);
+            return scaffoldingResult;
         }
 
-        public async Task GenerateCode(SqlStoredProcedure sqlStoredProcedure)
+        public async Task<ScaffoldResult> GenerateCode(SqlStoredProcedure sqlStoredProcedure)
         {
+            var scaffoldingResult = ScaffoldResult.Updated;
             var methodBody = GenerateInterfaceMethod(sqlStoredProcedure);
             var dalInterfacePath = GetFilePath(sqlStoredProcedure);
             var existingFileContent = string.Empty;
@@ -56,6 +61,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 SyntaxNode syntaxNode;
                 if (!File.Exists(dalInterfacePath))
                 {
+                    scaffoldingResult = ScaffoldResult.Created;
                     Logger.LogWarn($"[File does not exist] Creating {dalInterfacePath}");
                     syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
                 }
@@ -78,7 +84,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     FileUtils.WriteTextAndDirectory(dalInterfacePath, updatedFileContent);
                     Logger.LogSuccess($"[Force Repository Interface] {dalInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
 #else
-                Logger.LogSkipped($"[Skipped Repository] Method {sqlStoredProcedure.StoredProcedureName}");
+                    Logger.LogSkipped($"[Skipped Repository] Method {sqlStoredProcedure.StoredProcedureName}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
 #endif
                 }
             }
@@ -90,6 +97,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 _lockingService.ReleaseLock(dalInterfacePath);
             }
+
+            return scaffoldingResult;
         }
 
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)

@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis;
 using System.Text;
 using Apstory.Scaffold.Domain.Service;
+using Apstory.Scaffold.Model.Enum;
 
 namespace Apstory.Scaffold.Domain.Scaffold
 {
@@ -20,13 +21,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
             _lockingService = lockingService;
         }
 
-        public async Task DeleteCode(SqlStoredProcedure sqlStoredProcedure)
+        public async Task<ScaffoldResult> DeleteCode(SqlStoredProcedure sqlStoredProcedure)
         {
             var methodName = GetMethodName(sqlStoredProcedure);
             if (methodName.StartsWith("InsUpd", StringComparison.OrdinalIgnoreCase) ||
                 methodName.StartsWith("Del", StringComparison.OrdinalIgnoreCase))
-                return;
+                return ScaffoldResult.Skipped;
 
+            var scaffoldingResult = ScaffoldResult.Updated;
             var domainServiceInterfacePath = GetFilePath(sqlStoredProcedure);
             await _lockingService.AcquireLockAsync(domainServiceInterfacePath);
 
@@ -38,6 +40,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 File.Delete(domainServiceInterfacePath);
                 Logger.LogSuccess($"[Deleted Repository Interface] {domainServiceInterfacePath}");
+                scaffoldingResult = ScaffoldResult.Deleted;
             }
             else
             {
@@ -46,15 +49,17 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
 
             _lockingService.ReleaseLock(domainServiceInterfacePath);
+            return scaffoldingResult;
         }
 
-        public async Task GenerateCode(SqlStoredProcedure sqlStoredProcedure)
+        public async Task<ScaffoldResult> GenerateCode(SqlStoredProcedure sqlStoredProcedure)
         {
             var methodName = GetMethodName(sqlStoredProcedure);
             if (methodName.StartsWith("InsUpd", StringComparison.OrdinalIgnoreCase) ||
                 methodName.StartsWith("Del", StringComparison.OrdinalIgnoreCase))
-                return;
+                return ScaffoldResult.Skipped;
 
+            var scaffoldingResult = ScaffoldResult.Updated;
             var methodBody = GenerateInterfaceMethod(sqlStoredProcedure);
             var domainInterfacePath = GetFilePath(sqlStoredProcedure);
             var existingFileContent = string.Empty;
@@ -66,6 +71,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 SyntaxNode syntaxNode;
                 if (!File.Exists(domainInterfacePath))
                 {
+                    scaffoldingResult = ScaffoldResult.Created;
                     Logger.LogWarn($"[File does not exist] Creating {domainInterfacePath}");
                     syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
                 }
@@ -88,7 +94,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     FileUtils.WriteTextAndDirectory(domainInterfacePath, updatedFileContent);
                     Logger.LogSuccess($"[Force Created Foreign Service Interface] {domainInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
 #else
-                Logger.LogSkipped($"[Skipped Service Interface] Method {sqlStoredProcedure.StoredProcedureName}");
+                    Logger.LogSkipped($"[Skipped Service Interface] Method {sqlStoredProcedure.StoredProcedureName}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
 #endif
                 }
             }
@@ -100,6 +107,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 _lockingService.ReleaseLock(domainInterfacePath);
             }
+
+            return scaffoldingResult;
         }
 
         private string CreateOrUpdateMethod(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)

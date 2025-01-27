@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis;
 using System.Text;
 using Apstory.Scaffold.Domain.Service;
+using Apstory.Scaffold.Model.Enum;
 
 namespace Apstory.Scaffold.Domain.Scaffold
 {
@@ -20,8 +21,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             _lockingService = lockingService;
         }
 
-        public async Task DeleteCode(SqlStoredProcedure sqlStoredProcedure)
+        public async Task<ScaffoldResult> DeleteCode(SqlStoredProcedure sqlStoredProcedure)
         {
+            var scaffoldingResult = ScaffoldResult.Updated;
             var domainServicePath = GetFilePath(sqlStoredProcedure);
             await _lockingService.AcquireLockAsync(domainServicePath);
 
@@ -33,6 +35,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 File.Delete(domainServicePath);
                 Logger.LogSuccess($"[Deleted Service] {domainServicePath}");
+                scaffoldingResult = ScaffoldResult.Deleted;
             }
             else
             {
@@ -41,10 +44,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
 
             _lockingService.ReleaseLock(domainServicePath);
+            return scaffoldingResult;
         }
 
-        public async Task GenerateCode(SqlStoredProcedure sqlStoredProcedure)
+        public async Task<ScaffoldResult> GenerateCode(SqlStoredProcedure sqlStoredProcedure)
         {
+            var scaffoldingResult = ScaffoldResult.Updated;
             var methodBody = GenerateStoredProcedureMethod(sqlStoredProcedure);
             var domainServicePath = GetFilePath(sqlStoredProcedure);
             var existingFileContent = string.Empty;
@@ -56,6 +61,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 SyntaxNode syntaxNode;
                 if (!File.Exists(domainServicePath))
                 {
+                    scaffoldingResult = ScaffoldResult.Created;
                     Logger.LogWarn($"[File does not exist] Creating {domainServicePath}");
                     syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
                 }
@@ -78,7 +84,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
                     Logger.LogSuccess($"[Force Created Service] {domainServicePath} for method {sqlStoredProcedure.StoredProcedureName}");
 #else
-                Logger.LogSkipped($"[Skipped Service] Method {sqlStoredProcedure.StoredProcedureName}");
+                    Logger.LogSkipped($"[Skipped Service] Method {sqlStoredProcedure.StoredProcedureName}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
 #endif
                 }
             }
@@ -90,6 +97,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 _lockingService.ReleaseLock(domainServicePath);
             }
+
+            return scaffoldingResult;
         }
 
         private string CreateOrUpdateMethod(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)

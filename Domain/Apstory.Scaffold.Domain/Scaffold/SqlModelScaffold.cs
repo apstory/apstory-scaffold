@@ -19,8 +19,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             _lockingService = lockingService;
         }
 
-        public async Task GenerateCode(SqlTable sqlTable)
+        public async Task<ScaffoldResult> GenerateCode(SqlTable sqlTable)
         {
+            var scaffoldingResult = ScaffoldResult.Updated;
             var fileBody = GenerateCSharpModel(sqlTable);
             var fileName = $"{GetClassName(sqlTable)}.Gen.cs";
             var modelPath = Path.Combine(_config.Directories.ModelDirectory.ToSchemaString(sqlTable.Schema), fileName);
@@ -28,6 +29,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             if (File.Exists(modelPath))
                 existingModelContent = FileUtils.SafeReadAllText(modelPath);
+            else
+                scaffoldingResult = ScaffoldResult.Created;
 
             try
             {
@@ -44,7 +47,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     FileUtils.WriteTextAndDirectory(modelPath, fileBody);
                     Logger.LogSuccess($"[Force Created Model] {modelPath}");
 #else
-                Logger.LogSkipped($"[Skipped Model] {modelPath}");
+                    Logger.LogSkipped($"[Skipped Model] {modelPath}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
 #endif
                 }
             }
@@ -56,9 +60,11 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 _lockingService.ReleaseLock(modelPath);
             }
+
+            return scaffoldingResult;
         }
 
-        public async Task DeleteCode(SqlTable sqlTable)
+        public async Task<ScaffoldResult> DeleteCode(SqlTable sqlTable)
         {
             var modelPath = GetFilePath(sqlTable);
             await _lockingService.AcquireLockAsync(modelPath);
@@ -67,6 +73,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             Logger.LogSuccess($"[Deleted Model] {modelPath}");
 
             _lockingService.ReleaseLock(modelPath);
+
+            return ScaffoldResult.Deleted;
         }
 
         private string GetFilePath(SqlTable sqlTable)

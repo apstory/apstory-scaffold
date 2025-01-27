@@ -1,6 +1,7 @@
 ﻿using Apstory.Scaffold.Domain.Service;
 using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model.Config;
+using Apstory.Scaffold.Model.Enum;
 using Apstory.Scaffold.Model.Sql;
 using System.Text.RegularExpressions;
 
@@ -17,32 +18,35 @@ namespace Apstory.Scaffold.Domain.Scaffold
             _lockingService = lockingService;
         }
 
-        public async Task GenerateCode(SqlTable sqlTable)
+        public async Task<ScaffoldResult> GenerateCode(SqlTable sqlTable)
         {
+            var scaffoldId = int.MaxValue;
             string lockName = $"{sqlTable.Schema}.{sqlTable.TableName}";
 
-            await WriteScriptToDisk(sqlTable, GenerateInsertUpdateProcedure(sqlTable));
-            await WriteScriptToDisk(sqlTable, GenerateDelHrdProcedure(sqlTable));
-            await WriteScriptToDisk(sqlTable, GenerateDelSftProcedure(sqlTable));
-            await WriteScriptToDisk(sqlTable, GenerateGetByIdProcedure(sqlTable));
-            await WriteScriptToDisk(sqlTable, GenerateGetByPrimaryKeyIdsProcedure(sqlTable));
+            scaffoldId = Math.Min(scaffoldId, (int)await WriteScriptToDisk(sqlTable, GenerateInsertUpdateProcedure(sqlTable)));
+            scaffoldId = Math.Min(scaffoldId, (int)await WriteScriptToDisk(sqlTable, GenerateDelHrdProcedure(sqlTable)));
+            scaffoldId = Math.Min(scaffoldId, (int)await WriteScriptToDisk(sqlTable, GenerateDelSftProcedure(sqlTable)));
+            scaffoldId = Math.Min(scaffoldId, (int)await WriteScriptToDisk(sqlTable, GenerateGetByIdProcedure(sqlTable)));
+            scaffoldId = Math.Min(scaffoldId, (int)await WriteScriptToDisk(sqlTable, GenerateGetByPrimaryKeyIdsProcedure(sqlTable)));
 
             if (sqlTable.Constraints.Any(s => s.ConstraintType == Model.Enum.ConstraintType.ForeignKey))
             {
-                await WriteScriptToDisk(sqlTable, GenerateGetByForeignKeyIdsProcedure(sqlTable));
-                await WriteScriptToDisk(sqlTable, GenerateGetByForeignKeyIdsPagingProcedure(sqlTable));
+                scaffoldId = Math.Min(scaffoldId, (int)await WriteScriptToDisk(sqlTable, GenerateGetByForeignKeyIdsProcedure(sqlTable)));
+                scaffoldId = Math.Min(scaffoldId, (int)await WriteScriptToDisk(sqlTable, GenerateGetByForeignKeyIdsPagingProcedure(sqlTable)));
             }
 
             if (sqlTable.Indexes.Any())
             {
                 foreach (var script in GenerateGetByIndexedColumnProcedures(sqlTable))
                 {
-                    await WriteScriptToDisk(sqlTable, script);
+                    scaffoldId = Math.Min(scaffoldId, (int)await WriteScriptToDisk(sqlTable, script));
                 }
             }
+
+            return (ScaffoldResult)scaffoldId;
         }
 
-        public void DeleteCode(SqlTable sqlTable)
+        public Task<ScaffoldResult> DeleteCode(SqlTable sqlTable)
         {
             var directory = Path.Combine(_config.Directories.DBDirectory, sqlTable.Schema, "Stored Procedures");
             var procNamePattern = $"zgen_{sqlTable.TableName}_*.sql";
@@ -53,10 +57,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 Logger.LogSuccess($"[Deleted SQL Stored Procedure] {filesToDelete[i]}");
                 File.Delete(filesToDelete[i]);
             }
+
+            return Task.FromResult(ScaffoldResult.Deleted);
         }
 
-        private async Task WriteScriptToDisk(SqlTable sqlTable, string script)
+        private async Task<ScaffoldResult> WriteScriptToDisk(SqlTable sqlTable, string script)
         {
+            var scaffoldingResult = ScaffoldResult.Updated;
             var directory = Path.Combine(_config.Directories.DBDirectory, sqlTable.Schema, "Stored Procedures");
             var fileNameRx = Regex.Match(script, @"CREATE\s+PROCEDURE\s+\[?(\w+)\]?\.?\[?(\w+)\]?");
             var schema = fileNameRx.Groups[1].Value;
@@ -70,6 +77,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
                 if (File.Exists(filePath))
                     existingFileContent = FileUtils.SafeReadAllText(filePath);
+                else
+                    scaffoldingResult = ScaffoldResult.Created;
 
                 if (!existingFileContent.Equals(script))
                 {
@@ -82,7 +91,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     FileUtils.WriteTextAndDirectory(filePath, script);
                     Logger.LogSuccess($"[Force Created SQL Stored Procedure] {filePath}");
 #else
-                Logger.LogSkipped($"[Skipped SQL Stored Procedure] {filePath}");
+                    Logger.LogSkipped($"[Skipped SQL Stored Procedure] {filePath}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
 #endif
                 }
 
@@ -95,6 +105,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 _lockingService.ReleaseLock(filePath);
             }
+
+            return scaffoldingResult;
         }
     }
 }
