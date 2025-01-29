@@ -24,6 +24,8 @@ namespace Apstory.Scaffold.App.Worker
         private readonly SqlDomainServiceInterfaceScaffold _sqlDomainServiceInterfaceScaffold;
         private readonly SqlForeignDomainServiceScaffold _sqlForeignDomainServiceScaffold;
         private readonly SqlForeignDomainServiceInterfaceScaffold _sqlForeignDomainServiceInterfaceScaffold;
+        private readonly SqlDalRepositoryServiceCollectionExtensionScaffold _sqlDalRepositoryServiceCollectionExtensionScaffold;
+        private readonly SqlDomainServiceServiceCollectionExtensionScaffold _sqlDomainServiceServiceCollectionExtensionScaffold;
 
         private Dictionary<string, FileSystemWatcher> tableWatcher = new();
         private Dictionary<string, FileSystemWatcher> storedProcecdureWatcher = new();
@@ -37,7 +39,9 @@ namespace Apstory.Scaffold.App.Worker
                                  SqlDomainServiceScaffold sqlDomainServiceScaffold,
                                  SqlDomainServiceInterfaceScaffold sqlDomainServiceInterfaceScaffold,
                                  SqlForeignDomainServiceScaffold sqlForeignDomainServiceScaffold,
-                                 SqlForeignDomainServiceInterfaceScaffold sqlForeignDomainServiceInterfaceScaffold)
+                                 SqlForeignDomainServiceInterfaceScaffold sqlForeignDomainServiceInterfaceScaffold,
+                                 SqlDalRepositoryServiceCollectionExtensionScaffold sqlDalRepositoryServiceCollectionExtensionScaffold,
+                                 SqlDomainServiceServiceCollectionExtensionScaffold sqlDomainServiceServiceCollectionExtensionScaffold)
         {
             _csharpConfig = csharpConfig;
             _sqlTableCachingService = sqlTableCachingService;
@@ -49,6 +53,8 @@ namespace Apstory.Scaffold.App.Worker
             _sqlDomainServiceInterfaceScaffold = sqlDomainServiceInterfaceScaffold;
             _sqlForeignDomainServiceScaffold = sqlForeignDomainServiceScaffold;
             _sqlForeignDomainServiceInterfaceScaffold = sqlForeignDomainServiceInterfaceScaffold;
+            _sqlDalRepositoryServiceCollectionExtensionScaffold = sqlDalRepositoryServiceCollectionExtensionScaffold;
+            _sqlDomainServiceServiceCollectionExtensionScaffold = sqlDomainServiceServiceCollectionExtensionScaffold;
         }
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -196,41 +202,33 @@ namespace Apstory.Scaffold.App.Worker
                     await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
 
                     if (repoResult == Model.Enum.ScaffoldResult.Created)
-                    {
-                        //Update the Common-Repository DI Registration
-                    }
+                        await _sqlDalRepositoryServiceCollectionExtensionScaffold.GenerateCode(sqlStoredProcedureInfo);
 
                     if (domainResult == Model.Enum.ScaffoldResult.Created)
-                    {
-                        //Update the Common-Domain DI Registration
-                    }
+                        await _sqlDomainServiceServiceCollectionExtensionScaffold.GenerateCode(sqlStoredProcedureInfo);
                 }
 
                 if (changeType == WatcherChangeTypes.Deleted)
                 {
                     var fileName = Path.GetFileName(filePath);
                     var fileParts = fileName.Replace("zgen_", string.Empty).Replace(".sql", string.Empty).Split("_");
-                    var procInfo = new SqlStoredProcedure();
-                    procInfo.TableName = fileParts[0];
-                    procInfo.StoredProcedureName = fileName.Replace(".sql", string.Empty);
-                    procInfo.Schema = GetSchemaFromPath(filePath);
+                    var sqlStoredProcedureInfo = new SqlStoredProcedure();
+                    sqlStoredProcedureInfo.TableName = fileParts[0];
+                    sqlStoredProcedureInfo.StoredProcedureName = fileName.Replace(".sql", string.Empty);
+                    sqlStoredProcedureInfo.Schema = GetSchemaFromPath(filePath);
 
-                    var repoResult = await _sqlDalRepositoryScaffold.DeleteCode(procInfo);
-                    await _sqlDalRepositoryInterfaceScaffold.DeleteCode(procInfo);
-                    var domainResult = await _sqlDomainServiceScaffold.DeleteCode(procInfo);
-                    await _sqlDomainServiceInterfaceScaffold.DeleteCode(procInfo);
-                    await _sqlForeignDomainServiceScaffold.DeleteCode(procInfo);
-                    await _sqlForeignDomainServiceInterfaceScaffold.DeleteCode(procInfo);
+                    var repoResult = await _sqlDalRepositoryScaffold.DeleteCode(sqlStoredProcedureInfo);
+                    await _sqlDalRepositoryInterfaceScaffold.DeleteCode(sqlStoredProcedureInfo);
+                    var domainResult = await _sqlDomainServiceScaffold.DeleteCode(sqlStoredProcedureInfo);
+                    await _sqlDomainServiceInterfaceScaffold.DeleteCode(sqlStoredProcedureInfo);
+                    await _sqlForeignDomainServiceScaffold.DeleteCode(sqlStoredProcedureInfo);
+                    await _sqlForeignDomainServiceInterfaceScaffold.DeleteCode(sqlStoredProcedureInfo);
 
                     if (repoResult == Model.Enum.ScaffoldResult.Deleted)
-                    {
-                        //Update the Common-Repository DI Registration
-                    }
+                        await _sqlDalRepositoryServiceCollectionExtensionScaffold.DeleteCode(sqlStoredProcedureInfo);
 
                     if (domainResult == Model.Enum.ScaffoldResult.Deleted)
-                    {
-                        //Update the Common-Domain DI Registration
-                    }
+                        await _sqlDomainServiceServiceCollectionExtensionScaffold.DeleteCode(sqlStoredProcedureInfo);
                 }
             }
             catch (Exception ex)

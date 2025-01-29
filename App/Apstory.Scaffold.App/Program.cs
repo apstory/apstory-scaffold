@@ -50,6 +50,8 @@ class Program
                 services.AddTransient<SqlDomainServiceInterfaceScaffold>();
                 services.AddTransient<SqlForeignDomainServiceScaffold>();
                 services.AddTransient<SqlForeignDomainServiceInterfaceScaffold>();
+                services.AddTransient<SqlDalRepositoryServiceCollectionExtensionScaffold>();
+                services.AddTransient<SqlDomainServiceServiceCollectionExtensionScaffold>();
 
                 services.AddHostedService<SqlScaffoldWorker>();
             })

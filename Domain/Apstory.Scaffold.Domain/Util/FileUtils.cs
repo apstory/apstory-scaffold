@@ -19,7 +19,7 @@
                 Directory.CreateDirectory(directoryPath);
 
             // Write the file
-            using (var fileStream = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
+            using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
             using (var writer = new StreamWriter(fileStream))
             {
                 writer.Write(fileContents);
