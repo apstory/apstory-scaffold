@@ -194,6 +194,16 @@ namespace Apstory.Scaffold.App.Worker
                     await _sqlDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
                     await _sqlForeignDomainServiceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedureInfo);
                     await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
+
+                    if (repoResult == Model.Enum.ScaffoldResult.Created)
+                    {
+                        //Update the Common-Repository DI Registration
+                    }
+
+                    if (domainResult == Model.Enum.ScaffoldResult.Created)
+                    {
+                        //Update the Common-Domain DI Registration
+                    }
                 }
 
                 if (changeType == WatcherChangeTypes.Deleted)
@@ -211,6 +221,16 @@ namespace Apstory.Scaffold.App.Worker
                     await _sqlDomainServiceInterfaceScaffold.DeleteCode(procInfo);
                     await _sqlForeignDomainServiceScaffold.DeleteCode(procInfo);
                     await _sqlForeignDomainServiceInterfaceScaffold.DeleteCode(procInfo);
+
+                    if (repoResult == Model.Enum.ScaffoldResult.Deleted)
+                    {
+                        //Update the Common-Repository DI Registration
+                    }
+
+                    if (domainResult == Model.Enum.ScaffoldResult.Deleted)
+                    {
+                        //Update the Common-Domain DI Registration
+                    }
                 }
             }
             catch (Exception ex)

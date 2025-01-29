@@ -9,6 +9,8 @@
         public string DalNamespace { get; set; }
         public string DomainInterfaceNamespace { get; set; }
         public string DalInterfaceNamespace { get; set; }
+        public string ServiceCollectionExtensionNamespace { get; set; }
+
 
         public CSharpNamespaces(string rootNamespace)
         {
@@ -19,6 +21,7 @@
             DalNamespace = $"{rootNamespace}.Dal.Dapper.#SCHEMA#";
             DomainInterfaceNamespace = $"{rootNamespace}.Domain.Interface.#SCHEMA#";
             DalInterfaceNamespace = $"{rootNamespace}.Dal.Interface.#SCHEMA#";
+            ServiceCollectionExtensionNamespace = $"{rootNamespace}.ServiceCollectionExtension.#SCHEMA#.Gen";
         }
     }
 }

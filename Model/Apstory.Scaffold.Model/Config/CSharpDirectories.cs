@@ -10,6 +10,8 @@
         public string DomainInterfaceDirectory { get; set; }
         public string DalInterfaceDirectory { get; set; }
         public string DBDirectory { get; set; }
+        public string ServiceCollectionExtensionDalDirectory { get; set; }
+        public string ServiceCollectionExtensionDomainDirectory { get; set; }
 
         public CSharpDirectories(string solutionDirectory, string rootNamespace, string sqlProjectFile)
         {
@@ -22,6 +24,9 @@
             DomainInterfaceDirectory = Path.Combine(solutionDirectory, "Domain", $"{rootNamespace}.Domain.Interface", "Gen");
             DalDirectory = Path.Combine(solutionDirectory, "Dal", $"{rootNamespace}.Dal.Dapper", "#SCHEMA#", "Gen");
             DalInterfaceDirectory = Path.Combine(solutionDirectory, "Dal", $"{rootNamespace}.Dal.Interface", "#SCHEMA#", "Gen");
+
+            ServiceCollectionExtensionDalDirectory = Path.Combine(CommonDirectory, "#SCHEMA#", "Gen");
+            ServiceCollectionExtensionDomainDirectory = Path.Combine(CommonDirectory, "#SCHEMA#", "Gen");
         }
     }
 }
