@@ -5,7 +5,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 {
     public partial class SqlScriptFileScaffold
     {
-        private string[] skipDTDefaults = new string[] { "CreateDT", "UpdateDT" };
+        private string[] skipDTDefaults = new string[] { "CreateDT", "UpdateDT", "IsActive" };
 
         public string GenerateInsertUpdateProcedure(SqlTable table)
         {
@@ -23,10 +23,16 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_InsUpd]");
 
             // Add parameters for each column
-            sb.AppendLine("  (");
-            foreach (var column in table.Columns.Where(s => !skipDTDefaults.Contains(s.ColumnName)))
-                sb.AppendLine($"  @{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}{((column.IsNullable || column.ColumnName == primaryColumn.ColumnName) ? " = NULL" : "")},");
-            sb.AppendLine($"  @RetMsg NVARCHAR(MAX) OUTPUT");
+            sb.Append("  (");
+            
+            var sortedColumns = GetSortedColumnsByNullableDefaultType(table);
+            var sortedColumnsNoDT = sortedColumns.Where(s => !skipDTDefaults.Contains(s.ColumnName)).ToList();
+            var sortedColumnsNoDtNoPK = sortedColumnsNoDT.Where(s => s.ColumnName != primaryColumn.ColumnName).ToList();
+
+            foreach (var column in sortedColumnsNoDT)
+                sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}{((column.IsNullable || column.ColumnName == primaryColumn.ColumnName) ? "=NULL" : "")},");
+
+            sb.Append("@RetMsg NVARCHAR(MAX) OUTPUT");
             sb.AppendLine(")");
 
             sb.AppendLine("AS");
@@ -43,35 +49,32 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine($"    IF @{primaryColumn.ColumnName} IS NULL");
             sb.AppendLine("    BEGIN");
             sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
-            sb.AppendLine("        (");
+            sb.Append("        (");
 
-            foreach (var column in table.Columns.Where(s => !skipDTDefaults.Contains(s.ColumnName) && s.ColumnName != primaryColumn.ColumnName))
-                sb.AppendLine($"          [{column.ColumnName}],");
-
-            sb.Remove(sb.Length - 3, 3);
-            sb.AppendLine();
-            sb.AppendLine("        )");
+            foreach (var column in sortedColumnsNoDtNoPK)
+                sb.Append($"[{column.ColumnName}],");
+            sb.AppendLine($"[IsActive])");
+            sb.AppendLine(string.Empty);
             sb.AppendLine("      VALUES");
-            sb.AppendLine("        (");
+            sb.Append("        (");
 
-            foreach (var column in table.Columns.Where(s => !skipDTDefaults.Contains(s.ColumnName) && s.ColumnName != primaryColumn.ColumnName))
-                sb.AppendLine($"          @{column.ColumnName},");
-
-            sb.Remove(sb.Length - 3, 3);
-            sb.AppendLine();
-            sb.AppendLine("        );");
+            foreach (var column in sortedColumnsNoDtNoPK)
+                sb.Append($"@{column.ColumnName},");
+            sb.Append($"@IsActive");
+            sb.AppendLine(");");
 
             sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = SCOPE_IDENTITY();");
             sb.AppendLine("    END");
             sb.AppendLine("  ELSE");
             sb.AppendLine("    BEGIN");
             sb.AppendLine($"      UPDATE [{table.Schema}].[{table.TableName}]");
-            sb.AppendLine("        SET");
+            sb.Append("        SET ");
 
-            foreach (var column in table.Columns.Where(s => !skipDTDefaults.Contains(s.ColumnName) && s.ColumnName != primaryColumn.ColumnName))
-                sb.AppendLine($"          [{column.ColumnName}] = @{column.ColumnName},");
+            foreach (var column in sortedColumnsNoDtNoPK)
+                sb.Append($"[{column.ColumnName}]=@{column.ColumnName},");
 
-            sb.AppendLine($"          [UpdateDT] = GETDATE()");
+            sb.Append($"[UpdateDT]=GETDATE(),[IsActive]=@IsActive");
+            sb.AppendLine("");
             sb.AppendLine($"        WHERE ([{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName});");
 
             sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName};");
@@ -95,7 +98,6 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("    SET @RetMsg = ISNULL(@RetMsg, '')");
             sb.AppendLine("    IF @InitialTransCount = 0 ROLLBACK TRANSACTION @TranName");
             sb.AppendLine("    RETURN 1");
-            sb.AppendLine();
 
             sb.AppendLine("  END TRY");
             sb.AppendLine("  BEGIN CATCH");
