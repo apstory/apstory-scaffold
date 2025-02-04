@@ -251,7 +251,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     hasReturnValues = true;
                 }
                 else
-                    sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {(!useSeperateParameters ? $"{sqlStoredProcedure.TableName.ToCamelCase()}.{param.ColumnName.ToPascalCase()}" : param.ColumnName.ToCamelCase())});");
+                {
+                    if (param.DataType.StartsWith("udtt", StringComparison.OrdinalIgnoreCase))
+                        sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {param.ColumnName.ToCamelCase()}.ToDataTable().AsTableValuedParameter(\"{sqlStoredProcedure.Schema}.{param.DataType}\"));");
+                    else
+                        sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {(!useSeperateParameters ? $"{sqlStoredProcedure.TableName.ToCamelCase()}.{param.ColumnName.ToPascalCase()}" : param.ColumnName.ToCamelCase())});");
+                }
             }
 
             sb.AppendLine();
