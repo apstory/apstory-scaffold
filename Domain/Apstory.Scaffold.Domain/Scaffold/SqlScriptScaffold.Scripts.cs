@@ -212,38 +212,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             // Add parameters dynamically based on the foreign key columns
             sb.Append("  (");
 
-
-            Dictionary<string, string> columnDescriptions = new Dictionary<string, string>();
-            Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
-            var primaryKey = table.Constraints.First(con => con.ConstraintType == Model.Enum.ConstraintType.PrimaryKey);
-            int i = 0;
-            table.Columns.ForEach(s =>
-            {
-                columnIndexes[s.ColumnName] = i++;
-                columnDescriptions[s.ColumnName] = "NULLABLE";
-
-                if (s.ColumnName.Equals(primaryKey.Column))
-                    columnDescriptions[s.ColumnName] = "NULLABLE";
-                else if (!s.IsNullable)
-                {
-
-                    if (string.IsNullOrWhiteSpace(s.DefaultValue))
-                        columnDescriptions[s.ColumnName] = "NOT_NULLABLE_W_DEFAULT";
-                    else
-                        columnDescriptions[s.ColumnName] = "NOT_NULLABLE_NO_DEFAULT";
-                }
-            });
-
-            var foreignColumns = table.Columns.Where(col => IsForeignKey(col, table)).ToList();
-            foreignColumns.Sort((a, b) =>
-            {
-                var val = columnDescriptions[a.ColumnName].CompareTo(columnDescriptions[b.ColumnName]);
-                if (val == 0)
-                    return columnIndexes[a.ColumnName].CompareTo(columnIndexes[b.ColumnName]);
-
-                return val;
-            });
-
+            var sortedColumns = GetSortedColumnsByNullableDefaultType(table);
+            var foreignColumns = sortedColumns.Where(col => IsForeignKey(col, table)).ToList();
 
             // Loop through only foreign key columns
             foreach (var column in foreignColumns)
@@ -311,23 +281,17 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetByIdsPaging]");
 
-            // Add parameters for filtering by foreign keys and pagination
-            var foreignKeyColumns = table.Constraints
-                .Where(c => c.ConstraintType == Model.Enum.ConstraintType.ForeignKey)
-                .Select(c => c.Column)
-                .ToList();
+            var sortedColumns = GetSortedColumnsByNullableDefaultType(table);
+            var foreignColumns = sortedColumns.Where(col => IsForeignKey(col, table)).ToList();
 
-            sb.AppendLine("  (");
-            foreach (var fkColumn in foreignKeyColumns)
-            {
-                var column = table.Columns.First(c => c.ColumnName == fkColumn);
-                sb.AppendLine($"  @{column.ColumnName} {column.DataType} = NULL,");
-            }
+            sb.Append("  (");
+            foreach (var column in foreignColumns)
+                sb.Append($"@{column.ColumnName} {column.DataType}=NULL,");
 
-            sb.AppendLine($"  @IsActive BIT = NULL,");
-            sb.AppendLine($"  @PageNumber INT = 1,");
-            sb.AppendLine($"  @PageSize INT = 50,");
-            sb.AppendLine($"  @SortDirection VARCHAR(5) = 'ASC'");
+            sb.Append($"@IsActive BIT=NULL,");
+            sb.Append($"@PageNumber INT=1,");
+            sb.Append($"@PageSize INT=50,");
+            sb.Append($"@SortDirection VARCHAR(5)='ASC'");
             sb.AppendLine(")");
 
             sb.AppendLine("AS");
@@ -340,34 +304,37 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("  BEGIN");
             sb.AppendLine($"    WITH CTE_{table.TableName} AS (");
 
-            sb.AppendLine($"    SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE ");
+            sb.Append($"    SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE");
 
             // Add filtering conditions for foreign keys
-            foreach (var fkColumn in foreignKeyColumns)
-                sb.AppendLine($"      ([{fkColumn}] is NULL OR [{fkColumn}] = @{fkColumn}) AND");
+            foreach (var column in foreignColumns)
+                sb.Append($" (@{column.ColumnName} IS NULL OR [{column.ColumnName}] = @{column.ColumnName}) AND");
 
-            sb.Remove(sb.Length - 5, 5);
+            sb.Length -= 3;
             sb.AppendLine();
 
-            sb.AppendLine("    ORDER BY CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
+            sb.AppendLine("    ORDER BY");
+            sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine($"    OFFSET @PageSize * (@PageNumber - 1) ROWS FETCH NEXT @PageSize ROWS ONLY),");
 
             sb.AppendLine("    CTE_TotalRows AS");
             sb.AppendLine("    (");
-            sb.AppendLine($"      SELECT COUNT({primaryColumn.ColumnName}) AS TotalRows FROM [{table.Schema}].[{table.TableName}] WHERE ");
-
+            sb.AppendLine($"      SELECT COUNT({primaryColumn.ColumnName}) AS TotalRows FROM [{table.Schema}].[{table.TableName}]");
+            sb.Append("      WHERE");
+            
             // Add filtering conditions for foreign keys again in the count query
-            foreach (var fkColumn in foreignKeyColumns)
-                sb.AppendLine($"      ([{fkColumn}] IS NULL OR [{fkColumn}] = @{fkColumn}) AND");
+            foreach (var column in foreignColumns)
+                sb.Append($" (@{column.ColumnName} IS NULL OR [{column.ColumnName}] = @{column.ColumnName}) AND");
 
-            sb.Remove(sb.Length - 5, 5);
+            sb.Length -= 3;
             sb.AppendLine();
 
             sb.AppendLine("    )");
 
-            sb.AppendLine("    SELECT TotalRows, [{table.Schema}].[{table.TableName}].* FROM [{table.Schema}].[{table.TableName}], CTE_TotalRows");
+            sb.AppendLine($"    SELECT TotalRows, [{table.Schema}].[{table.TableName}].* FROM [{table.Schema}].[{table.TableName}], CTE_TotalRows");
             sb.AppendLine($"    WHERE EXISTS (SELECT 1 FROM CTE_{table.TableName} WHERE CTE_{table.TableName}.{primaryColumn.ColumnName} = [{table.Schema}].[{table.TableName}].{primaryColumn.ColumnName})");
-            sb.AppendLine("    ORDER BY CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
+            sb.AppendLine("    ORDER BY");
+            sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine("    OPTION (RECOMPILE);");
             sb.AppendLine("  END");
 
@@ -375,30 +342,37 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("  BEGIN");
             sb.AppendLine($"    WITH CTE_{table.TableName} AS (");
 
-            sb.AppendLine($"    SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE ");
+            sb.Append($"    SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE");
 
             // Add filtering conditions for foreign keys
-            foreach (var fkColumn in foreignKeyColumns)
-                sb.AppendLine($"      ([{fkColumn}] IS NULL OR [{fkColumn}] = @{fkColumn}) AND ");
+            foreach (var column in foreignColumns)
+                sb.Append($" (@{column.ColumnName} IS NULL OR [{column.ColumnName}] = @{column.ColumnName}) AND");
+            sb.Length -= 3;
+            sb.AppendLine("");
+            sb.AppendLine(" AND IsActive = @IsActive");
 
-            sb.AppendLine("          [IsActive] = @IsActive");
-            sb.AppendLine("    ORDER BY CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
+            sb.AppendLine("    ORDER BY");
+            sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine($"    OFFSET @PageSize * (@PageNumber - 1) ROWS FETCH NEXT @PageSize ROWS ONLY),");
 
             sb.AppendLine("    CTE_TotalRows AS");
             sb.AppendLine("    (");
-            sb.AppendLine($"      SELECT COUNT({primaryColumn.ColumnName}) AS TotalRows FROM [{table.Schema}].[{table.TableName}] WHERE");
+            sb.AppendLine($"      SELECT COUNT({primaryColumn.ColumnName}) AS TotalRows FROM [{table.Schema}].[{table.TableName}]");
+            sb.Append("      WHERE");
 
             // Add filtering conditions for foreign keys again in the count query
-            foreach (var fkColumn in foreignKeyColumns)
-                sb.AppendLine($"      ([{fkColumn}] IS NULL OR [{fkColumn}] = @{fkColumn}) AND ");
+            foreach (var column in foreignColumns)
+                sb.Append($" (@{column.ColumnName} IS NULL OR [{column.ColumnName}] = @{column.ColumnName}) AND");
+            sb.Length -= 3;
 
-            sb.AppendLine("          [IsActive] = @IsActive");
+            sb.AppendLine();
+            sb.AppendLine("      AND IsActive = @IsActive");
             sb.AppendLine("    )");
 
-            sb.AppendLine("    SELECT TotalRows, [{table.Schema}].[{table.TableName}].* FROM [{table.Schema}].[{table.TableName}], CTE_TotalRows");
+            sb.AppendLine($"    SELECT TotalRows, [{table.Schema}].[{table.TableName}].* FROM [{table.Schema}].[{table.TableName}], CTE_TotalRows");
             sb.AppendLine($"    WHERE EXISTS (SELECT 1 FROM CTE_{table.TableName} WHERE CTE_{table.TableName}.{primaryColumn.ColumnName} = [{table.Schema}].[{table.TableName}].{primaryColumn.ColumnName})");
-            sb.AppendLine("    ORDER BY CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
+            sb.AppendLine("    ORDER BY");
+            sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine("    OPTION (RECOMPILE);");
             sb.AppendLine("  END");
 
@@ -573,6 +547,34 @@ namespace Apstory.Scaffold.Domain.Scaffold
             // Get primary key column details
             var column = table.Columns.First(c => c.ColumnName == primaryKeyColumn);
             return column;
+        }
+
+        private List<SqlColumn> GetSortedColumnsByNullableDefaultType(SqlTable table)
+        {
+            Dictionary<string, string> columnDescriptions = new Dictionary<string, string>();
+            Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
+            var primaryKey = table.Constraints.First(con => con.ConstraintType == Model.Enum.ConstraintType.PrimaryKey);
+            int i = 0;
+            table.Columns.ForEach(s =>
+            {
+                columnIndexes[s.ColumnName] = i++;
+                columnDescriptions[s.ColumnName] = "NULLABLE";
+
+                if (s.ColumnName.Equals(primaryKey.Column))
+                    columnDescriptions[s.ColumnName] = "NULLABLE";
+                else if (!s.IsNullable)
+                {
+
+                    if (string.IsNullOrWhiteSpace(s.DefaultValue))
+                        columnDescriptions[s.ColumnName] = "NOT_NULLABLE_W_DEFAULT";
+                    else
+                        columnDescriptions[s.ColumnName] = "NOT_NULLABLE_NO_DEFAULT";
+                }
+            });
+
+            return table.Columns.OrderBy(s => columnDescriptions[s.ColumnName])
+                                .ThenBy(s => columnIndexes[s.ColumnName])
+                                .ToList();
         }
     }
 }
