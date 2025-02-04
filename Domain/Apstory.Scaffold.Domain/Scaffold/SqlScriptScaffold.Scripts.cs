@@ -212,8 +212,41 @@ namespace Apstory.Scaffold.Domain.Scaffold
             // Add parameters dynamically based on the foreign key columns
             sb.Append("  (");
 
+
+            Dictionary<string, string> columnDescriptions = new Dictionary<string, string>();
+            Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
+            var primaryKey = table.Constraints.First(con => con.ConstraintType == Model.Enum.ConstraintType.PrimaryKey);
+            int i = 0;
+            table.Columns.ForEach(s =>
+            {
+                columnIndexes[s.ColumnName] = i++;
+                columnDescriptions[s.ColumnName] = "NULLABLE";
+
+                if (s.ColumnName.Equals(primaryKey.Column))
+                    columnDescriptions[s.ColumnName] = "NULLABLE";
+                else if (!s.IsNullable)
+                {
+
+                    if (string.IsNullOrWhiteSpace(s.DefaultValue))
+                        columnDescriptions[s.ColumnName] = "NOT_NULLABLE_W_DEFAULT";
+                    else
+                        columnDescriptions[s.ColumnName] = "NOT_NULLABLE_NO_DEFAULT";
+                }
+            });
+
+            var foreignColumns = table.Columns.Where(col => IsForeignKey(col, table)).ToList();
+            foreignColumns.Sort((a, b) =>
+            {
+                var val = columnDescriptions[a.ColumnName].CompareTo(columnDescriptions[b.ColumnName]);
+                if (val == 0)
+                    return columnIndexes[a.ColumnName].CompareTo(columnIndexes[b.ColumnName]);
+
+                return val;
+            });
+
+
             // Loop through only foreign key columns
-            foreach (var column in table.Columns.Where(col => IsForeignKey(col, table)))
+            foreach (var column in foreignColumns)
                 sb.Append($"@{column.ColumnName} {column.DataType.ToLower()}=NULL,");
 
             sb.Append($"@IsActive bit=NULL,");
@@ -230,25 +263,29 @@ namespace Apstory.Scaffold.Domain.Scaffold
             // Build the dynamic WHERE clause based on the foreign key parameters
             sb.AppendLine("  IF @IsActive IS NULL");
             sb.AppendLine("  BEGIN");
-            sb.AppendLine("    SELECT * FROM [" + table.Schema + "].[" + table.TableName + "]");
+            sb.Append("    SELECT * FROM [" + table.Schema + "].[" + table.TableName + "] WHERE ");
 
-            foreach (var column in table.Columns.Where(c => IsForeignKey(c, table)))
-                sb.AppendLine($"      AND (@{column.ColumnName} IS NULL OR [{column.ColumnName}] = @{column.ColumnName})");
+            foreach (var column in foreignColumns)
+                sb.Append($"(@{column.ColumnName} IS NULL OR [{column.ColumnName}] = @{column.ColumnName}) AND ");
+            sb.Length -= 4;
 
+            sb.AppendLine("");
             sb.AppendLine("    ORDER BY ");
-            sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN [CreateDT] END ASC, CASE WHEN @SortDirection = 'DESC' THEN [CreateDT] END DESC");
+            sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine("    OPTION (RECOMPILE);");
             sb.AppendLine("  END");
             sb.AppendLine("  ELSE");
             sb.AppendLine("  BEGIN");
-            sb.AppendLine("    SELECT * FROM [" + table.Schema + "].[" + table.TableName + "]");
+            sb.Append("    SELECT * FROM [" + table.Schema + "].[" + table.TableName + "] WHERE ");
 
-            foreach (var column in table.Columns.Where(c => IsForeignKey(c, table)))
-                sb.AppendLine($"      AND (@{column.ColumnName} IS NULL OR [{column.ColumnName}] = @{column.ColumnName})");
+            foreach (var column in foreignColumns)
+                sb.Append($"(@{column.ColumnName} IS NULL OR [{column.ColumnName}] = @{column.ColumnName}) AND ");
+            sb.Length -= 4;
 
-            sb.AppendLine($"      AND IsActive = @IsActive");
+            sb.AppendLine("");
+            sb.AppendLine("    AND IsActive = @IsActive");
             sb.AppendLine("    ORDER BY ");
-            sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN [CreateDT] END ASC, CASE WHEN @SortDirection = 'DESC' THEN [CreateDT] END DESC");
+            sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine("    OPTION (RECOMPILE);");
             sb.AppendLine("  END");
 
