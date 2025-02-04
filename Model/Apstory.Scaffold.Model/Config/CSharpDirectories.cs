@@ -5,6 +5,7 @@
         public string SolutionDirectory { get; set; }
         public string ModelDirectory { get; set; }
         public string CommonDirectory { get; set; }
+        public string CommonServiceCollectionExtensionDirectory { get; set; }
         public string DomainDirectory { get; set; }
         public string DalDirectory { get; set; }
         public string DomainInterfaceDirectory { get; set; }
@@ -25,8 +26,9 @@
             DalDirectory = Path.Combine(solutionDirectory, "Dal", $"{rootNamespace}.Dal.Dapper", "#SCHEMA#", "Gen");
             DalInterfaceDirectory = Path.Combine(solutionDirectory, "Dal", $"{rootNamespace}.Dal.Interface", "#SCHEMA#", "Gen");
 
-            ServiceCollectionExtensionDalDirectory = Path.Combine(CommonDirectory, "#SCHEMA#", "Gen");
-            ServiceCollectionExtensionDomainDirectory = Path.Combine(CommonDirectory, "#SCHEMA#", "Gen");
+            CommonServiceCollectionExtensionDirectory = Path.Combine(solutionDirectory, "Common", $"{rootNamespace}.Common.ServiceCollectionExtension");
+            ServiceCollectionExtensionDalDirectory = Path.Combine(CommonServiceCollectionExtensionDirectory, "#SCHEMA#", "Gen");
+            ServiceCollectionExtensionDomainDirectory = Path.Combine(CommonServiceCollectionExtensionDirectory, "#SCHEMA#", "Gen");
         }
     }
 }
