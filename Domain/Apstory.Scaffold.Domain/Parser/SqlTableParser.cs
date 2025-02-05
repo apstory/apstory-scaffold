@@ -25,7 +25,7 @@ namespace Apstory.Scaffold.Domain.Parser
                                    .ToList();
 
             // Define regex to extract column details
-            var columnRegex = new Regex(@"\[(\w+)\]\s+(\w+)\s?(\(?\d+\))?.*?(NOT NULL|NULL)", RegexOptions.IgnoreCase);
+            var columnRegex = new Regex(@"\[(\w+)\]\s+(\w+)\s?(\(?\d+\))?.*?(DEFAULT\s*\(.*\))?\s+(NOT NULL|NULL)", RegexOptions.IgnoreCase);
 
             // Parse columns
             foreach (var line in columnLines)
@@ -36,7 +36,8 @@ namespace Apstory.Scaffold.Domain.Parser
                     ColumnName = match.Groups[1].Value,
                     DataType = match.Groups[2].Value,
                     DataTypeLength = match.Groups[3].Value.Trim(')', '('),
-                    IsNullable = !match.Groups[4].Value.StartsWith("NOT", StringComparison.OrdinalIgnoreCase),
+                    DefaultValue = match.Groups[4].Value,
+                    IsNullable = !match.Groups[5].Value.StartsWith("NOT", StringComparison.OrdinalIgnoreCase),
                 };
 
                 table.Columns.Add(column);

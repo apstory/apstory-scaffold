@@ -34,9 +34,6 @@ namespace Apstory.Scaffold.Domain.Service
             _cacheLock.Wait();
             try
             {
-                var cachedData = _memoryCache.Get<SqlTable>(tablePath);
-                if (cachedData is not null) return cachedData;
-
                 var tableStr = FileUtils.SafeReadAllText(tablePath);
                 Logger.LogDebug($"Read [{Path.GetFileName(tablePath)}]");
 

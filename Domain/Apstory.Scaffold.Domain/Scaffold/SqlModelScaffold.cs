@@ -107,8 +107,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     column.IsNullable = true;
 
                 var property = SyntaxFactory.PropertyDeclaration(
-                        SyntaxFactory.ParseTypeName(column.ToCSharpTypeString()),
-                        column.ColumnName)
+                        SyntaxFactory.ParseTypeName(column.ToCSharpTypeString()), column.ColumnName)
                     .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                     .AddAccessorListAccessors(
                         SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)

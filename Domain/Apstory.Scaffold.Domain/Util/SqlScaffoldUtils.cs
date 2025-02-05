@@ -49,7 +49,8 @@ namespace Apstory.Scaffold.Domain.Util
                 _ => throw new Exception($"ToCSharpTypeString lookup exception: {column.DataType}")
             };
 
-            if (column.IsNullable || forceNullable)
+            var hasDefaultValue = !string.IsNullOrWhiteSpace(column.DefaultValue);
+            if (column.IsNullable || hasDefaultValue || forceNullable)
                 if (csharpType != "string" && !csharpType.StartsWith("List<"))
                     return $"{csharpType}?";
 
