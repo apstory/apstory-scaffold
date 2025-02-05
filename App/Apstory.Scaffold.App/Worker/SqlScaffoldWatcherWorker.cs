@@ -9,7 +9,7 @@ using System.Collections.Concurrent;
 
 namespace Apstory.Scaffold.App.Worker
 {
-    public class SqlScaffoldWorker : BackgroundService
+    public class SqlScaffoldWatcherWorker : BackgroundService
     {
         private static readonly ConcurrentDictionary<string, CancellationTokenSource> _debounceCancellations = new ConcurrentDictionary<string, CancellationTokenSource>();
         private static readonly TimeSpan _debounceTime = TimeSpan.FromMilliseconds(150);
@@ -30,7 +30,7 @@ namespace Apstory.Scaffold.App.Worker
         private Dictionary<string, FileSystemWatcher> tableWatcher = new();
         private Dictionary<string, FileSystemWatcher> storedProcecdureWatcher = new();
 
-        public SqlScaffoldWorker(CSharpConfig csharpConfig,
+        public SqlScaffoldWatcherWorker(CSharpConfig csharpConfig,
                                  SqlTableCachingService sqlTableCachingService,
                                  SqlDalRepositoryScaffold sqlDalRepositoryScaffold,
                                  SqlScriptFileScaffold sqlScriptFileScaffold,

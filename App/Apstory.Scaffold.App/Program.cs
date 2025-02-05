@@ -16,12 +16,14 @@ class Program
         var configuration = new ConfigurationBuilder()
             .AddCommandLine(args, new Dictionary<string, string> {
                 { "-sqlproject", "sqlproject" },
-                { "-namespace", "namespace" }
+                { "-namespace", "namespace" },
+                { "-regen", "regen" },
             })
             .Build();
 
         string overrideSqlProjectPath = configuration["sqlproject"];
         string overrideNamespace = configuration["namespace"];
+        var regenerate = args.Contains("-regen");
 
         Console.WriteLine($"Override Sql Project Path: {overrideSqlProjectPath}");
         Console.WriteLine($"Override Namespace: {overrideNamespace}");
@@ -34,6 +36,10 @@ class Program
         var csharpConfig = SetupProjectConfiguration(basePath, overrideSqlProjectPath, overrideNamespace);
 
         var host = Host.CreateDefaultBuilder(args)
+            .ConfigureAppConfiguration((context, config) =>
+            {
+                config.AddConfiguration(configuration); // Merge command-line args into DI config
+            })
             .ConfigureServices((context, services) =>
             {
                 services.AddMemoryCache();
@@ -53,7 +59,10 @@ class Program
                 services.AddTransient<SqlDalRepositoryServiceCollectionExtensionScaffold>();
                 services.AddTransient<SqlDomainServiceServiceCollectionExtensionScaffold>();
 
-                services.AddHostedService<SqlScaffoldWorker>();
+                if (regenerate)
+                    services.AddHostedService<SqlScaffoldRegenerationWorker>();
+                else
+                    services.AddHostedService<SqlScaffoldWatcherWorker>();
             })
             .Build();
 
