@@ -18,12 +18,33 @@ class Program
                 { "-sqlproject", "sqlproject" },
                 { "-namespace", "namespace" },
                 { "-regen", "regen" },
+                { "-clean", "clean" },
+                { "-help", "help" },
             })
             .Build();
+
+        if (args.Contains("-help"))
+        {
+            Console.WriteLine("Available Command-Line Switches:");
+            Console.WriteLine("-sqlproject <path>   : Overrides the SQL project path instead of letting the application search for it.");
+            Console.WriteLine("-namespace <name>    : Overrides the namespace for scaffolded code instead of fetching it from the sqlproj.");
+            Console.WriteLine("-regen <params>      : Executes immediate regeneration of files. Will regenerate all found schemas when no additional information supplied. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to regenerate.");
+            Console.WriteLine("-clean               : Deletes existing generated files.");
+
+            return;
+        }
 
         string overrideSqlProjectPath = configuration["sqlproject"];
         string overrideNamespace = configuration["namespace"];
         var regenerate = args.Contains("-regen");
+        var clean = args.Contains("-clean");
+
+        if (clean & regenerate)
+        {
+            Console.WriteLine("Only specify clean or regen.");
+
+            return;
+        }
 
         Console.WriteLine($"Override Sql Project Path: {overrideSqlProjectPath}");
         Console.WriteLine($"Override Namespace: {overrideNamespace}");
@@ -59,7 +80,9 @@ class Program
                 services.AddTransient<SqlDalRepositoryServiceCollectionExtensionScaffold>();
                 services.AddTransient<SqlDomainServiceServiceCollectionExtensionScaffold>();
 
-                if (regenerate)
+                if (clean)
+                    services.AddHostedService<SqlScaffoldCleanupWorker>();
+                else if (regenerate)
                     services.AddHostedService<SqlScaffoldRegenerationWorker>();
                 else
                     services.AddHostedService<SqlScaffoldWatcherWorker>();
