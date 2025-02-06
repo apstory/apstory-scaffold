@@ -25,25 +25,40 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var scaffoldingResult = ScaffoldResult.Updated;
             var domainServicePath = GetFilePath(sqlStoredProcedure);
-            await _lockingService.AcquireLockAsync(domainServicePath);
 
-            var existingFileContent = FileUtils.SafeReadAllText(domainServicePath);
-            var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+            if (!File.Exists(domainServicePath))
+                return ScaffoldResult.Skipped;
 
-            var updatedFileContent = RemoveMethodCall(syntaxTree.GetRoot(), sqlStoredProcedure);
-            if (string.IsNullOrEmpty(updatedFileContent))
+            try
             {
-                File.Delete(domainServicePath);
-                Logger.LogSuccess($"[Deleted Service] {domainServicePath}");
-                scaffoldingResult = ScaffoldResult.Deleted;
-            }
-            else
-            {
-                FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
-                Logger.LogSuccess($"[Updated Service] {domainServicePath} removed method {sqlStoredProcedure.StoredProcedureName}");
-            }
 
-            _lockingService.ReleaseLock(domainServicePath);
+                await _lockingService.AcquireLockAsync(domainServicePath);
+
+                var existingFileContent = FileUtils.SafeReadAllText(domainServicePath);
+                var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+
+                var updatedFileContent = RemoveMethodCall(syntaxTree.GetRoot(), sqlStoredProcedure);
+                if (string.IsNullOrEmpty(updatedFileContent))
+                {
+                    File.Delete(domainServicePath);
+                    Logger.LogSuccess($"[Deleted Service] {domainServicePath}");
+                    scaffoldingResult = ScaffoldResult.Deleted;
+                }
+                else
+                {
+                    FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
+                    Logger.LogSuccess($"[Updated Service] {domainServicePath} removed method {sqlStoredProcedure.StoredProcedureName}");
+                }
+
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(domainServicePath);
+            }
             return scaffoldingResult;
         }
 
@@ -159,6 +174,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                          .OfType<MethodDeclarationSyntax>()
                                          .FirstOrDefault(m => m.Identifier.Text == methodName);
 
+            if (method is null)
+                return root.NormalizeWhitespace().ToFullString();
+
             var updatedRoot = root.RemoveNode(method, SyntaxRemoveOptions.KeepLeadingTrivia | SyntaxRemoveOptions.KeepTrailingTrivia);
 
             if (!updatedRoot.DescendantNodes().OfType<MethodDeclarationSyntax>().Any())
@@ -169,7 +187,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GetFilePath(SqlStoredProcedure sqlStoredProcedure)
         {
-            var fileName = $"{GetClassName(sqlStoredProcedure)}.Gen.cs";
+            var fileName = $"{GetClassName(sqlStoredProcedure)}.#SCHEMA#.Gen.cs".ToSchemaString(sqlStoredProcedure.Schema);
             var domainServicePath = Path.Combine(_config.Directories.DomainDirectory.ToSchemaString(sqlStoredProcedure.Schema), fileName);
             return domainServicePath;
         }

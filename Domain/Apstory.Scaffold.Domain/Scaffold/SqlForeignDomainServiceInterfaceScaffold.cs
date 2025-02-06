@@ -28,28 +28,41 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 methodName.StartsWith("Del", StringComparison.OrdinalIgnoreCase))
                 return ScaffoldResult.Skipped;
 
-            var scaffoldingResult = ScaffoldResult.Updated;
             var domainServiceInterfacePath = GetFilePath(sqlStoredProcedure);
-            await _lockingService.AcquireLockAsync(domainServiceInterfacePath);
+            if (!File.Exists(domainServiceInterfacePath))
+                return ScaffoldResult.Skipped;
 
-            var existingFileContent = FileUtils.SafeReadAllText(domainServiceInterfacePath);
-            var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
-
-            var updatedFileContent = RemoveMethodCall(syntaxTree.GetRoot(), sqlStoredProcedure);
-            if (string.IsNullOrEmpty(updatedFileContent))
+            try
             {
-                File.Delete(domainServiceInterfacePath);
-                Logger.LogSuccess($"[Deleted Repository Interface] {domainServiceInterfacePath}");
-                scaffoldingResult = ScaffoldResult.Deleted;
-            }
-            else
-            {
-                FileUtils.WriteTextAndDirectory(domainServiceInterfacePath, updatedFileContent);
-                Logger.LogSuccess($"[Updated Repository Interface] {domainServiceInterfacePath} removed method {sqlStoredProcedure.StoredProcedureName}");
-            }
+                var scaffoldingResult = ScaffoldResult.Updated;
+                await _lockingService.AcquireLockAsync(domainServiceInterfacePath);
 
-            _lockingService.ReleaseLock(domainServiceInterfacePath);
-            return scaffoldingResult;
+                var existingFileContent = FileUtils.SafeReadAllText(domainServiceInterfacePath);
+                var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+
+                var updatedFileContent = RemoveMethodCall(syntaxTree.GetRoot(), sqlStoredProcedure);
+                if (string.IsNullOrEmpty(updatedFileContent))
+                {
+                    File.Delete(domainServiceInterfacePath);
+                    Logger.LogSuccess($"[Deleted Repository Interface] {domainServiceInterfacePath}");
+                    scaffoldingResult = ScaffoldResult.Deleted;
+                }
+                else
+                {
+                    FileUtils.WriteTextAndDirectory(domainServiceInterfacePath, updatedFileContent);
+                    Logger.LogSuccess($"[Updated Repository Interface] {domainServiceInterfacePath} removed method {sqlStoredProcedure.StoredProcedureName}");
+                }
+
+                return scaffoldingResult;
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(domainServiceInterfacePath);
+            }
         }
 
         public async Task<ScaffoldResult> GenerateCode(SqlStoredProcedure sqlStoredProcedure)
@@ -168,6 +181,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                              .OfType<MethodDeclarationSyntax>()
                                              .FirstOrDefault(m => m.Identifier.Text == methodName);
 
+            if (method is null)
+                return root.NormalizeWhitespace().ToFullString();
+
             var updatedRoot = root.RemoveNode(method, SyntaxRemoveOptions.KeepLeadingTrivia | SyntaxRemoveOptions.KeepTrailingTrivia);
 
             if (!updatedRoot.DescendantNodes().OfType<MethodDeclarationSyntax>().Any())
@@ -178,7 +194,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GetFilePath(SqlStoredProcedure sqlStoredProcedure)
         {
-            var fileName = $"{GetInterfaceName(sqlStoredProcedure)}.Foreign.Gen.cs";
+            var fileName = $"{GetInterfaceName(sqlStoredProcedure)}.#SCHEMA#.Foreign.Gen.cs".ToSchemaString(sqlStoredProcedure.Schema);
             var domainInterfacePath = Path.Combine(_config.Directories.DomainInterfaceDirectory.ToSchemaString(sqlStoredProcedure.Schema), fileName);
             return domainInterfacePath;
         }

@@ -67,6 +67,10 @@ namespace Apstory.Scaffold.Domain.Scaffold
         public async Task<ScaffoldResult> DeleteCode(SqlTable sqlTable)
         {
             var modelPath = GetFilePath(sqlTable);
+
+            if (!File.Exists(modelPath))
+                return ScaffoldResult.Skipped;
+
             await _lockingService.AcquireLockAsync(modelPath);
 
             File.Delete(modelPath);

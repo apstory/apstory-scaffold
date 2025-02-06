@@ -48,6 +48,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         public Task<ScaffoldResult> DeleteCode(SqlTable sqlTable)
         {
+            var didSkip = false;
             var directory = Path.Combine(_config.Directories.DBDirectory, sqlTable.Schema, "Stored Procedures");
             var procNamePattern = $"zgen_{sqlTable.TableName}_*.sql";
 
@@ -55,8 +56,15 @@ namespace Apstory.Scaffold.Domain.Scaffold
             for (int i = 0; i < filesToDelete.Length; i++)
             {
                 Logger.LogSuccess($"[Deleted SQL Stored Procedure] {filesToDelete[i]}");
-                File.Delete(filesToDelete[i]);
+
+                if (File.Exists(filesToDelete[i]))
+                    File.Delete(filesToDelete[i]);
+                else
+                    didSkip = true;
             }
+
+            if (didSkip)
+                return Task.FromResult(ScaffoldResult.Skipped);
 
             return Task.FromResult(ScaffoldResult.Deleted);
         }

@@ -57,19 +57,19 @@ namespace Apstory.Scaffold.App.Worker
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var cleanArgs = _configuration["clean"];
-            var dbSchemas = Directory.EnumerateDirectories(_csharpConfig.Directories.DBDirectory, "*", SearchOption.AllDirectories)
+            var dbSchemas = Directory.EnumerateDirectories(_csharpConfig.Directories.DBDirectory, "*", SearchOption.TopDirectoryOnly)
                                      .Where(folder => !IsInExcludedFolder(folder, _csharpConfig.Directories.DBDirectory));
 
             foreach (var dbSchema in dbSchemas)
             {
                 var schemaStoredProcedurePath = Path.Combine(_csharpConfig.Directories.DBDirectory, dbSchema, "Stored Procedures");
-                var allGeneratedStoredProcedures = Directory.EnumerateDirectories(schemaStoredProcedurePath, "zgen_*.sql", SearchOption.TopDirectoryOnly);
+                var allGeneratedStoredProcedures = Directory.EnumerateFiles(schemaStoredProcedurePath, "zgen_*.sql", SearchOption.TopDirectoryOnly);
 
                 foreach (var storedProcedurePath in allGeneratedStoredProcedures)
                     await CleanStoredProcedure(storedProcedurePath);
 
                 var schemaTablesPath = Path.Combine(_csharpConfig.Directories.DBDirectory, dbSchema, "Tables");
-                var allTables = Directory.EnumerateDirectories(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
+                var allTables = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
 
                 foreach (var tablePath in allTables)
                     await CleanTable(tablePath);
