@@ -70,13 +70,13 @@ namespace Apstory.Scaffold.App.Worker
 
                 Logger.LogInfo($"Regenerate all tables and all procs");
 
-                var dbSchemas = Directory.EnumerateDirectories(_csharpConfig.Directories.DBDirectory, "*", SearchOption.AllDirectories)
+                var dbSchemas = Directory.EnumerateDirectories(_csharpConfig.Directories.DBDirectory, "*", SearchOption.TopDirectoryOnly)
                                          .Where(folder => !IsInExcludedFolder(folder, _csharpConfig.Directories.DBDirectory));
 
                 foreach (var dbSchema in dbSchemas)
                 {
                     var schemaTablesPath = Path.Combine(_csharpConfig.Directories.DBDirectory, dbSchema, "Tables");
-                    var allTablePaths = Directory.EnumerateDirectories(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
+                    var allTablePaths = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
 
                     foreach (var tablePath in allTablePaths)
                     {
@@ -101,7 +101,7 @@ namespace Apstory.Scaffold.App.Worker
                     Logger.LogInfo($"Regenerate entire {schema} schema");
 
                     var schemaTablesPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Tables");
-                    var allTablePaths = Directory.EnumerateDirectories(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
+                    var allTablePaths = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
                     foreach (var tablePath in allTablePaths)
                     {
                         await RegenerateTable(tablePath);
@@ -175,7 +175,7 @@ namespace Apstory.Scaffold.App.Worker
             //Recursively find all related stored procedures for table
             var searchPattern = $"zgen_{tableName}_*.sql";
             Logger.LogInfo($"Searching for all procs in '{storedProcedureDirectory}' matching '{searchPattern}'");
-            var allRelatedStoredProcedurePaths = Directory.EnumerateDirectories(storedProcedureDirectory, searchPattern, SearchOption.TopDirectoryOnly);
+            var allRelatedStoredProcedurePaths = Directory.EnumerateFiles(storedProcedureDirectory, searchPattern, SearchOption.TopDirectoryOnly);
 
             foreach (var storedProcedurePath in allRelatedStoredProcedurePaths)
                 await RegenerateStoredProcedure(storedProcedurePath);
