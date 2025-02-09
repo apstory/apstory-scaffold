@@ -2,12 +2,17 @@
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using System;
 using System.ComponentModel.Design;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.Remoting.Contexts;
 using System.Text;
 using System.Threading;
+using System.Windows.Controls;
 using Task = System.Threading.Tasks.Task;
 
 namespace Apstory.Scaffold.VisualStudio
@@ -70,57 +75,29 @@ namespace Apstory.Scaffold.VisualStudio
         private void ExecuteCommand(object sender, EventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            WriteToOutputWindow("Dude, you executed something");
-
             GetActiveFileContent();
-            //VsShellUtilities.ShowMessageBox(
-            //    this,
-            //    "Scaffold Code Button Clicked!",
-            //    "Information",
-            //    OLEMSGICON.OLEMSGICON_INFO,
-            //    OLEMSGBUTTON.OLEMSGBUTTON_OK,
-            //    OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
         }
 
         private void GetActiveFileContent()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
 
-            // Get the active text view
-            var textManager = (IVsTextManager)this.GetService(typeof(SVsTextManager));
-            if (textManager == null) return;
-
-            textManager.GetActiveView(1, null, out IVsTextView textView);
-
-            if (textView != null)
+            EnvDTE.DTE app = (EnvDTE.DTE)GetService(typeof(SDTE));
+            if (app.ActiveDocument != null && app.ActiveDocument.Type == "Text")
             {
-                var path = GetFilePathFromTextView(textView);
-                WriteToOutputWindow($"Current open view file: {path}");
+                EnvDTE.TextDocument textDoc = (EnvDTE.TextDocument)app.ActiveDocument.Object("TextDocument");
 
-                // Get the buffer associated with the text view
-                textView.GetBuffer(out IVsTextLines textLines);
+                var editPoint = textDoc.StartPoint.CreateEditPoint();
+                var documentText = editPoint.GetText(textDoc.EndPoint.CreateEditPoint());
 
-                if (textLines != null)
-                {
-                    // Get the number of lines in the buffer
-                    textLines.GetLineCount(out int lineCount);
+                var filePath = Path.Combine(app.ActiveDocument.Path, app.ActiveDocument.FullName);
+                WriteToOutputWindow($"Active Path: {filePath}");
 
-                    WriteToOutputWindow($"Lines: {lineCount}");
-
-                    StringBuilder fileContent = new StringBuilder();
-
-                    // Iterate through each line and get the text
-                    for (int lineNum = 0; lineNum < lineCount; lineNum++)
-                    {
-                        textLines.GetLineText(lineNum, 0, lineNum, int.MaxValue, out string lineText);
-                        fileContent.AppendLine(lineText);
-                    }
-
-                    // Write the content of the file to the Output window
-                    WriteToOutputWindow($"Currently open file content: {fileContent}");
-                }
+                // Write the content to the Output window
+                WriteToOutputWindow($"Currently open document content: {documentText}");
             }
         }
+
 
         private void WriteToOutputWindow(string message)
         {
@@ -144,52 +121,6 @@ namespace Apstory.Scaffold.VisualStudio
             // Write message to the pane
             outputPane.OutputString(message + "\n");
         }
-
-        private string GetFilePathFromTextView(IVsTextView textView)
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
-            // Get the IVsRunningDocumentTable service
-            var rdt = (IVsRunningDocumentTable)this.GetService(typeof(SVsRunningDocumentTable));
-            if (rdt == null)
-            {
-                return "Unable to retrieve running document table";
-            }
-
-            uint docCookie = 0;
-            string filePath = null;
-            IVsHierarchy hierarchy = null;
-            uint itemId = 0;
-            uint rdtFlags = 0;
-            uint readOnly = 0;
-            uint editlock = 0;
-            IntPtr docData = IntPtr.Zero;
-
-            // GetDocumentInfo requires a docCookie to be filled
-            int result = rdt.GetDocumentInfo(
-                docCookie,
-                out rdtFlags,
-                out readOnly,
-                out editlock,
-                out filePath,
-                out hierarchy,
-                out itemId,
-                out docData);
-
-            // Debugging output
-            if (result != VSConstants.S_OK)
-            {
-                return $"Error retrieving document info. Result: {result} ({result.ToString("X8")})";
-            }
-
-            if (string.IsNullOrEmpty(filePath))
-            {
-                return "File path is empty or null";
-            }
-
-            return filePath;
-        }
-
 
         #endregion
     }
