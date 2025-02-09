@@ -31,25 +31,33 @@
     group; your package should define its own command set in order to avoid collisions
     with command ids defined by other packages. -->
 
-    <!--Buttons section. -->
-    <!--This section defines the elements the user can interact with, like a menu command or a button
-        or combo box in a toolbar. -->
+    <!-- Define a Custom Toolbar -->
+    <Menus>
+      <Menu guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="Toolbar" type="Toolbar">
+        <CommandFlag>DefaultDocked</CommandFlag>
+        <Strings>
+          <ButtonText>Apstory Scaffold</ButtonText>
+          <CommandName>Apstory Scaffold</CommandName>
+        </Strings>
+      </Menu>
+    </Menus>
+
+    <Groups>
+      <Group guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" priority="0x0000">
+        <Parent guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="Toolbar" />
+      </Group>
+    </Groups>
+
     <Buttons>
-      <!--To define a menu group you have to specify its ID, the parent menu and its display priority.
-          The command is visible and enabled by default. If you need to change the visibility, status, etc, you can use
-          the CommandFlag node.
-          You can add more than one CommandFlag node e.g.:
-              <CommandFlag>DefaultInvisible</CommandFlag>
-              <CommandFlag>DynamicVisibility</CommandFlag>
-          If you do not want an image next to your command, remove the Icon node /> -->
-      <Button guid="guidApstoryScaffoldVisualStudioPackageCmdSet" id="ScaffoldWindowCommandId" priority="0x0100" type="Button">
-        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1"/>
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryScaffoldCommandId" priority="0x0100" type="Button">
+        <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
         <Icon guid="guidImages" id="bmpPic1" />
         <Strings>
-          <ButtonText>Apstory Scaffolding</ButtonText>
+          <ButtonText>Invoke Apstory Scaffold</ButtonText>
         </Strings>
       </Button>
     </Buttons>
+
 
     <!--The bitmaps section is used to define the bitmaps that are used for the commands.-->
     <Bitmaps>
@@ -66,9 +74,15 @@
     <!-- This is the package guid. -->
     <GuidSymbol name="guidApstoryScaffoldVisualStudioPackage" value="{033376d0-4630-4068-89d7-e6629cfe6645}" />
 
+    <GuidSymbol name="guidBtnGenerate" value="{2c52b739-3505-4257-8d20-564dcdabefde}">
+    </GuidSymbol>
+
     <!-- This is the guid used to group the menu commands together -->
-    <GuidSymbol name="guidApstoryScaffoldVisualStudioPackageCmdSet" value="{bf130a03-5202-4448-8173-02f6b1d00bd2}">
-      <IDSymbol name="ScaffoldWindowCommandId" value="0x0100" />
+    <GuidSymbol name="guidToolbarApstoryScaffoldCommandPackageCmdSet" value="{bf130a03-5202-4448-8173-02f6b1d00bd2}">
+      
+      <IDSymbol name="Toolbar" value="0x1000" />
+      <IDSymbol name="ToolbarGroup" value="0x1050" />
+      <IDSymbol name="ToolbarApstoryScaffoldCommandId" value="0x1051" />
     </GuidSymbol>
 
     <GuidSymbol name="guidImages" value="{178b5164-e89b-4490-aff5-7f1fd4b28fd6}" >
