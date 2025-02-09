@@ -1,4 +1,5 @@
-﻿using Apstory.Scaffold.Domain.Scaffold;
+﻿using Apstory.Scaffold.Domain.Parser;
+using Apstory.Scaffold.Domain.Scaffold;
 using Apstory.Scaffold.Domain.Service;
 using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model.Config;
@@ -57,7 +58,7 @@ namespace Apstory.Scaffold.App.Worker
         }
 
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var regenArgs = _configuration["regen"];
             var schema = "dbo";
@@ -66,11 +67,23 @@ namespace Apstory.Scaffold.App.Worker
             if (regenArgs is null)
             {
                 //Regenerate all found sql tables and procs
+
                 Logger.LogInfo($"Regenerate all tables and all procs");
 
-                //TODO: Foreach schema
-                //TODO: > Regenerate all tables
-                //TODO: > Regenerate all procs
+                var dbSchemas = Directory.EnumerateDirectories(_csharpConfig.Directories.DBDirectory, "*", SearchOption.TopDirectoryOnly)
+                                         .Where(folder => !IsInExcludedFolder(folder, _csharpConfig.Directories.DBDirectory));
+
+                foreach (var dbSchema in dbSchemas)
+                {
+                    var schemaTablesPath = Path.Combine(_csharpConfig.Directories.DBDirectory, dbSchema, "Tables");
+                    var allTablePaths = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
+
+                    foreach (var tablePath in allTablePaths)
+                    {
+                        await RegenerateTable(tablePath);
+                        await RegenerateTableStoredProcedures(tablePath);
+                    }
+                }
             }
             else
             {
@@ -80,14 +93,20 @@ namespace Apstory.Scaffold.App.Worker
                     schema = argSplit[0];
                     entityName = argSplit[1];
                 }
-                
+
                 if (string.IsNullOrWhiteSpace(entityName))
                 {
                     //Regenerate entire schema's table and procs (-regen=dbo)
+
                     Logger.LogInfo($"Regenerate entire {schema} schema");
 
-                    //TODO: Regenerate all tables
-                    //TODO: Regenerate all procs
+                    var schemaTablesPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Tables");
+                    var allTablePaths = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
+                    foreach (var tablePath in allTablePaths)
+                    {
+                        await RegenerateTable(tablePath);
+                        await RegenerateTableStoredProcedures(tablePath);
+                    }
                 }
                 else
                 {
@@ -98,16 +117,17 @@ namespace Apstory.Scaffold.App.Worker
                     {
                         Logger.LogInfo($"Regenerate Table {schema}.{entityName}");
 
-                        //TODO: Regenerate table
-                        //TODO: Regenerate tables procs
-                    } else
+                        await RegenerateTable(tablePath);
+                        await RegenerateTableStoredProcedures(tablePath);
+                    }
+                    else
                     {
                         var storedProcPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Stored Procedure", $"{entityName}.sql");
                         if (File.Exists(storedProcPath))
                         {
                             Logger.LogInfo($"Regenerate Stored Procedure {schema}.{entityName}");
-                            //TODO: Regenerate proc
-                        } 
+                            await RegenerateStoredProcedure(storedProcPath);
+                        }
                         else
                         {
                             Logger.LogError($"Could not find a table or stored procedure {schema}.{entityName}");
@@ -116,24 +136,9 @@ namespace Apstory.Scaffold.App.Worker
                 }
             }
 
-            //Recursively find all valid sql subfolders in the project folder
-            //var dbSchemas = Directory.EnumerateDirectories(_csharpConfig.Directories.DBDirectory, "*", SearchOption.AllDirectories)
-            //                         .Where(folder => !IsInExcludedFolder(folder, _csharpConfig.Directories.DBDirectory));
 
-            //foreach (var schema in dbSchemas)
-            //{
-            //    var tablesFolder = Path.Combine(schema, "Tables");
-            //    if (Directory.Exists(tablesFolder))
-            //        SetupSqlTableWatcher(schema, tablesFolder);
-
-            //    var procsFolder = Path.Combine(schema, "Stored Procedures");
-            //    if (Directory.Exists(procsFolder))
-            //        SetupSqlProcsWatcher(schema, procsFolder);
-
-            //}
 
             _lifetime.StopApplication();
-            return Task.CompletedTask;
         }
 
         private bool IsInExcludedFolder(string path, string rootDirectory)
@@ -141,6 +146,83 @@ namespace Apstory.Scaffold.App.Worker
             var excludedFolders = new[] { "bin", "obj", "Security", "Snapshots", "Storage" };
             var relativePath = Path.GetRelativePath(rootDirectory, path);
             return excludedFolders.Any(folder => relativePath.Split(Path.DirectorySeparatorChar).Contains(folder));
+        }
+
+        /// <summary>
+        /// Regenerates a single table - Creates the csharp model and the db scripts
+        /// </summary>
+        /// <param name="tablePath"></param>
+        /// <returns></returns>
+        private async Task RegenerateTable(string tablePath)
+        {
+            var tableInfo = _sqlTableCachingService.GetLatestTableAndCache(tablePath);
+
+            await _sqlModelScaffold.GenerateCode(tableInfo);
+            await _sqlScriptFileScaffold.GenerateCode(tableInfo);
+        }
+
+        /// <summary>
+        /// Search for all procs relating to a specific table and regenerates the required cSharp files
+        /// </summary>
+        /// <param name="tablePath"></param>
+        /// <returns></returns>
+        private async Task RegenerateTableStoredProcedures(string tablePath)
+        {
+            var tableName = Path.GetFileName(tablePath).Replace(".sql", "");
+            var schemaDirectory = Directory.GetParent(Path.GetDirectoryName(tablePath));
+            var storedProcedureDirectory = Path.Combine(schemaDirectory.FullName, "Stored Procedures");
+
+            //Recursively find all related stored procedures for table
+            var searchPattern = $"zgen_{tableName}_*.sql";
+            Logger.LogInfo($"Searching for all procs in '{storedProcedureDirectory}' matching '{searchPattern}'");
+            var allRelatedStoredProcedurePaths = Directory.EnumerateFiles(storedProcedureDirectory, searchPattern, SearchOption.TopDirectoryOnly);
+
+            foreach (var storedProcedurePath in allRelatedStoredProcedurePaths)
+                await RegenerateStoredProcedure(storedProcedurePath);
+        }
+
+        /// <summary>
+        /// Regenerate a single stored proc, updating all the related csharp files
+        /// </summary>
+        /// <param name="storedProcedurePath"></param>
+        /// <returns></returns>
+        private async Task RegenerateStoredProcedure(string storedProcedurePath)
+        {
+            Logger.LogInfo($"[Regenerating Stored Procedure] {storedProcedurePath}");
+
+            try
+            {
+                var fileName = Path.GetFileName(storedProcedurePath);
+                string sqlProcDefinition = FileUtils.SafeReadAllText(storedProcedurePath);
+                Logger.LogDebug($"Read [{fileName}]");
+
+                var sqlStoredProcedureInfo = SqlProcedureParser.Parse(sqlProcDefinition);
+                Logger.LogDebug($"Parsed [{fileName}]");
+
+                var tableName = fileName.Replace("zgen_", string.Empty).Split("_")[0];
+                var directory = Directory.GetParent(Path.GetDirectoryName(storedProcedurePath));
+                var tablePath = Path.Combine(directory.FullName, "Tables", $"{tableName}.sql");
+                var sqlTableInfo = _sqlTableCachingService.GetCachedTable(tablePath);
+
+                var repoResult = await _sqlDalRepositoryScaffold.GenerateCode(sqlStoredProcedureInfo);
+                await _sqlDalRepositoryInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
+                var domainResult = await _sqlDomainServiceScaffold.GenerateCode(sqlStoredProcedureInfo);
+                await _sqlDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
+                await _sqlForeignDomainServiceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedureInfo);
+                await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
+
+                if (repoResult == Model.Enum.ScaffoldResult.Created)
+                    await _sqlDalRepositoryServiceCollectionExtensionScaffold.GenerateCode(sqlStoredProcedureInfo);
+
+                if (domainResult == Model.Enum.ScaffoldResult.Created)
+                    await _sqlDomainServiceServiceCollectionExtensionScaffold.GenerateCode(sqlStoredProcedureInfo);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Error Stored Procedure] {storedProcedurePath}, {ex.Message}");
+            }
+
+            Logger.LogInfo($"[DONE Stored Procedure] {storedProcedurePath}");
         }
     }
 }

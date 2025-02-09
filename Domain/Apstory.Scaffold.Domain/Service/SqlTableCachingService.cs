@@ -45,6 +45,11 @@ namespace Apstory.Scaffold.Domain.Service
 
                 return sqlTable;
             }
+            catch(Exception ex)
+            {
+                Logger.LogError($"Error parsing '{tablePath}'\r\n{ex.Message}");
+                throw;
+            }
             finally
             {
                 _cacheLock.Release();

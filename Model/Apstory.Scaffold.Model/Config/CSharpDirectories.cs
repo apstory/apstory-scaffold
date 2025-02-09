@@ -21,8 +21,8 @@
             CommonDirectory = Path.Combine(solutionDirectory, "Common", $"{rootNamespace}.Common");
             ModelDirectory = Path.Combine(solutionDirectory, "Model", $"{rootNamespace}.Model", "#SCHEMA#");
 
-            DomainDirectory = Path.Combine(solutionDirectory, "Domain", $"{rootNamespace}.Domain", "Gen");
-            DomainInterfaceDirectory = Path.Combine(solutionDirectory, "Domain", $"{rootNamespace}.Domain.Interface", "Gen");
+            DomainDirectory = Path.Combine(solutionDirectory, "Domain", $"{rootNamespace}.Domain", "#SCHEMA#", "Gen");
+            DomainInterfaceDirectory = Path.Combine(solutionDirectory, "Domain", $"{rootNamespace}.Domain.Interface", "#SCHEMA#", "Gen");
             DalDirectory = Path.Combine(solutionDirectory, "Dal", $"{rootNamespace}.Dal.Dapper", "#SCHEMA#", "Gen");
             DalInterfaceDirectory = Path.Combine(solutionDirectory, "Dal", $"{rootNamespace}.Dal.Interface", "#SCHEMA#", "Gen");
 

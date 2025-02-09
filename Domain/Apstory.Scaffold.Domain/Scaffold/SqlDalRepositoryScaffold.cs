@@ -25,26 +25,42 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var scaffoldingResult = ScaffoldResult.Updated;
             var dalRepositoryPath = GetFilePath(sqlStoredProcedure);
-            await _lockingService.AcquireLockAsync(dalRepositoryPath);
 
-            var existingFileContent = FileUtils.SafeReadAllText(dalRepositoryPath);
-            var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+            if (!File.Exists(dalRepositoryPath))
+                return ScaffoldResult.Skipped;
 
-            var updatedFileContent = RemoveMethodCall(syntaxTree.GetRoot(), sqlStoredProcedure);
-            if (string.IsNullOrEmpty(updatedFileContent))
+            try
             {
-                File.Delete(dalRepositoryPath);
-                Logger.LogSuccess($"[Deleted Repository] {dalRepositoryPath}");
-                scaffoldingResult = ScaffoldResult.Deleted;
-            }
-            else
-            {
-                FileUtils.WriteTextAndDirectory(dalRepositoryPath, updatedFileContent);
-                Logger.LogSuccess($"[Updated Repository] {dalRepositoryPath} removed method {sqlStoredProcedure.StoredProcedureName}");
-            }
+                
 
-            _lockingService.ReleaseLock(dalRepositoryPath);
-            return scaffoldingResult;
+                await _lockingService.AcquireLockAsync(dalRepositoryPath);
+
+                var existingFileContent = FileUtils.SafeReadAllText(dalRepositoryPath);
+                var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+
+                var updatedFileContent = RemoveMethodCall(syntaxTree.GetRoot(), sqlStoredProcedure);
+                if (string.IsNullOrEmpty(updatedFileContent))
+                {
+                    File.Delete(dalRepositoryPath);
+                    Logger.LogSuccess($"[Deleted Repository] {dalRepositoryPath}");
+                    scaffoldingResult = ScaffoldResult.Deleted;
+                }
+                else
+                {
+                    FileUtils.WriteTextAndDirectory(dalRepositoryPath, updatedFileContent);
+                    Logger.LogSuccess($"[Updated Repository] {dalRepositoryPath} removed method {sqlStoredProcedure.StoredProcedureName}");
+                }
+
+                return scaffoldingResult;
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(dalRepositoryPath);
+            }
         }
 
         public async Task<ScaffoldResult> GenerateCode(SqlStoredProcedure sqlStoredProcedure)
@@ -118,7 +134,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                          .FirstOrDefault(m => m.Identifier.Text == methodName);
 
             if (method is null)
-                root.NormalizeWhitespace().ToFullString();
+                return root.NormalizeWhitespace().ToFullString();
 
             var updatedRoot = root.RemoveNode(method, SyntaxRemoveOptions.KeepLeadingTrivia | SyntaxRemoveOptions.KeepTrailingTrivia);
 
@@ -172,7 +188,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GetFilePath(SqlStoredProcedure sqlStoredProcedure)
         {
-            var fileName = $"{GetClassName(sqlStoredProcedure)}.Gen.cs";
+            var fileName = $"{GetClassName(sqlStoredProcedure)}.#SCHEMA#.Gen.cs".ToSchemaString(sqlStoredProcedure.Schema);
             var dalRepositoryPath = Path.Combine(_config.Directories.DalDirectory.ToSchemaString(sqlStoredProcedure.Schema), fileName);
             return dalRepositoryPath;
         }

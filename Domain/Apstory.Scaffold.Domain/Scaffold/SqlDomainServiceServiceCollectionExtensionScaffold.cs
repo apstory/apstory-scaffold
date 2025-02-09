@@ -26,25 +26,39 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var scaffoldingResult = ScaffoldResult.Updated;
             var dalRepoScePath = GetFilePath(sqlStoredProcedure);
-            await _lockingService.AcquireLockAsync(dalRepoScePath);
 
-            var existingFileContent = FileUtils.SafeReadAllText(dalRepoScePath);
-            var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+            if (!File.Exists(dalRepoScePath))
+                return ScaffoldResult.Skipped;
 
-            var updatedFileContent = RemoveMethodStatement(syntaxTree.GetRoot(), sqlStoredProcedure);
-            if (string.IsNullOrEmpty(updatedFileContent))
+            try
             {
-                File.Delete(dalRepoScePath);
-                Logger.LogSuccess($"[Deleted SCE Service] {dalRepoScePath}");
-                scaffoldingResult = ScaffoldResult.Deleted;
-            }
-            else
-            {
-                FileUtils.WriteTextAndDirectory(dalRepoScePath, updatedFileContent);
-                Logger.LogSuccess($"[Updated SCE Service] {dalRepoScePath} removed Dependency Injection {sqlStoredProcedure.TableName}");
-            }
+                await _lockingService.AcquireLockAsync(dalRepoScePath);
 
-            _lockingService.ReleaseLock(dalRepoScePath);
+                var existingFileContent = FileUtils.SafeReadAllText(dalRepoScePath);
+                var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+
+                var updatedFileContent = RemoveMethodStatement(syntaxTree.GetRoot(), sqlStoredProcedure);
+                if (string.IsNullOrEmpty(updatedFileContent))
+                {
+                    File.Delete(dalRepoScePath);
+                    Logger.LogSuccess($"[Deleted SCE Service] {dalRepoScePath}");
+                    scaffoldingResult = ScaffoldResult.Deleted;
+                }
+                else
+                {
+                    FileUtils.WriteTextAndDirectory(dalRepoScePath, updatedFileContent);
+                    Logger.LogSuccess($"[Updated SCE Service] {dalRepoScePath} removed Dependency Injection {sqlStoredProcedure.TableName}");
+                }
+
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(dalRepoScePath);
+            }
             return scaffoldingResult;
         }
 
@@ -200,7 +214,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GetFilePath(SqlStoredProcedure sqlStoredProcedure)
         {
-            var fileName = $"AddGeneratedServicesServiceCollectionExtension.Gen.cs";
+            var fileName = $"AddGeneratedServicesServiceCollectionExtension.cs";
             var dalRepoScePath = Path.Combine(_config.Directories.ServiceCollectionExtensionDomainDirectory.ToSchemaString(sqlStoredProcedure.Schema), fileName);
             return dalRepoScePath;
         }

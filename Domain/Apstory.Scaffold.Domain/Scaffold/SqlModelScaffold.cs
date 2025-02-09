@@ -23,7 +23,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var scaffoldingResult = ScaffoldResult.Updated;
             var fileBody = GenerateCSharpModel(sqlTable);
-            var fileName = $"{GetClassName(sqlTable)}.Gen.cs";
+            var fileName = $"{GetClassName(sqlTable)}.#SCHEMA#.Gen.cs".ToSchemaString(sqlTable.Schema);
             var modelPath = Path.Combine(_config.Directories.ModelDirectory.ToSchemaString(sqlTable.Schema), fileName);
             var existingModelContent = string.Empty;
 
@@ -54,7 +54,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
             catch (Exception ex)
             {
-                Logger.LogError($"[Model] {ex.Message}");
+                Logger.LogError($"[Model Error] {ex.Message}");
             }
             finally
             {
@@ -67,6 +67,10 @@ namespace Apstory.Scaffold.Domain.Scaffold
         public async Task<ScaffoldResult> DeleteCode(SqlTable sqlTable)
         {
             var modelPath = GetFilePath(sqlTable);
+
+            if (!File.Exists(modelPath))
+                return ScaffoldResult.Skipped;
+
             await _lockingService.AcquireLockAsync(modelPath);
 
             File.Delete(modelPath);
@@ -86,7 +90,10 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GenerateCSharpModel(SqlTable sqlTable)
         {
-            var primaryConstraint = sqlTable.Constraints.First(s => s.ConstraintType == ConstraintType.PrimaryKey);
+            var primaryConstraint = sqlTable.Constraints.FirstOrDefault(s => s.ConstraintType == ConstraintType.PrimaryKey);
+
+            if (primaryConstraint is null)
+                throw new Exception($"No primary constraint found in table {sqlTable.TableName}");
 
             // Create a class declaration
             var classDeclaration = SyntaxFactory.ClassDeclaration(sqlTable.TableName)
