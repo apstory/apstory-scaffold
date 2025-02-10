@@ -1,9 +1,14 @@
 ﻿using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Threading;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
+using System.IO;
+using System.Threading.Tasks;
+using System.Windows.Documents;
 
 namespace Apstory.Scaffold.VisualStudio
 {
@@ -47,14 +52,13 @@ namespace Apstory.Scaffold.VisualStudio
         /// </summary>
         /// <param name="tableOrStoredProcName"> dbo.tableName // dbo.zgen_table_command </param>
         /// <param name="workingDirectory">Directory to execute the command in</param>
-        private void ExecuteScaffolding(string tableOrStoredProcName, string workingDirectory)
+        private async Task<List<string>> ExecuteScaffolding(string tableOrStoredProcName, string workingDirectory)
         {
-            string command = scaffoldAppLocation;
             string arguments = $"-regen {tableOrStoredProcName}";
 
             ProcessStartInfo psi = new ProcessStartInfo
             {
-                FileName = command,
+                FileName = scaffoldAppLocation,
                 Arguments = arguments,
                 WorkingDirectory = workingDirectory,
                 RedirectStandardOutput = true,
@@ -63,31 +67,32 @@ namespace Apstory.Scaffold.VisualStudio
                 CreateNoWindow = true
             };
 
+            List<string> logs = new List<string>();
             using (Process process = new Process { StartInfo = psi })
             {
                 process.OutputDataReceived += (sender, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        Log($"{e.Data}");
+                        logs.Add(e.Data);
                 };
 
                 process.ErrorDataReceived += (sender, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        Log($"Error: {e.Data}");
+                        logs.Add($"Error: {e.Data}");
                 };
 
                 process.Start();
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
-                process.WaitForExit();
+                await process.WaitForExitAsync();
             }
+
+            return logs;
         }
 
         private async void Log(string message)
         {
-            await this.JoinableTaskFactory.SwitchToMainThreadAsync();
-
             // Get the Output window service
             var outputWindow = (IVsOutputWindow)this.GetService(typeof(SVsOutputWindow));
             if (outputWindow == null)
@@ -136,6 +141,23 @@ namespace Apstory.Scaffold.VisualStudio
 
             return null;
         }
+
+        private string GetSchemaFromPath(string path)
+        {
+            string directory = Path.GetDirectoryName(path);
+
+            if (directory == null)
+                throw new ArgumentException("Invalid path provided.");
+
+            // Get the parent directory (schema folder)
+            string schema = Directory.GetParent(directory)?.Name;
+
+            if (string.IsNullOrEmpty(schema))
+                throw new InvalidOperationException("Schema folder not found in the provided path.");
+
+            return schema;
+        }
+
 
         //EnvDTE is being phased out in later versions of visual studio
         [Obsolete]

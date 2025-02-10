@@ -48,6 +48,7 @@ namespace Apstory.Scaffold.VisualStudio
         private const string guidApstoryScaffoldVisualStudioPackageCmdSet = "bf130a03-5202-4448-8173-02f6b1d00bd2"; // Match `guidApstoryScaffoldVisualStudioPackageCmdSet`
         private const int ToolbarTestCommandId = 0x1051; // Matches `ToolbarTestCommandId`
 
+        private MenuCommand btnRunCodeScaffold;
         #region Package Members
 
         /// <summary>
@@ -67,17 +68,27 @@ namespace Apstory.Scaffold.VisualStudio
             if (commandService != null)
             {
                 var cmdId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarTestCommandId);
-                var menuItem = new MenuCommand(ExecuteCommand, cmdId);
-                commandService.AddCommand(menuItem);
+                btnRunCodeScaffold = new MenuCommand(ExecuteCommand, cmdId);
+                commandService.AddCommand(btnRunCodeScaffold);
             }
 
-            this.scaffoldAppLocation = ExecuteCmd("where.exe", scaffoldApp).Trim('\r','\n',' ');
+            this.scaffoldAppLocation = ExecuteCmd("where.exe", scaffoldApp).Trim('\r', '\n', ' ');
             Log($"Found Scaffold App at {this.scaffoldAppLocation}");
         }
 
-        private void ExecuteCommand(object sender, EventArgs e)
+        private bool isScaffolding = false;
+        private async void ExecuteCommand(object sender, EventArgs e)
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            if (isScaffolding)
+            {
+                Log("Scaffolding is already running. Please wait.");
+                return;
+            }
+
+            isScaffolding = true;
+            btnRunCodeScaffold.Enabled = !isScaffolding;
+
             try
             {
                 var solutionDirectory = GetSolutionDirectory();
@@ -90,12 +101,29 @@ namespace Apstory.Scaffold.VisualStudio
                 }
 
                 Log($"Executing Code Scaffold for {fileName} in {solutionDirectory}");
-                var entityName = fileName.Replace(".sql", string.Empty);
-                ExecuteScaffolding(entityName, solutionDirectory);
+                var schema = GetSchemaFromPath(activeDocPath);
+                var tableOrProc = fileName.Replace(".sql", string.Empty);
+
+                ExecuteScaffolding($"{schema}.{tableOrProc}", solutionDirectory);
+
+                // Run the process on a background thread
+                var logs = await Task.Run(() => ExecuteScaffolding($"{schema}.{tableOrProc}", solutionDirectory));
+
+                // Return to the UI thread for logging
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                foreach (var log in logs)
+                    Log(log);
+
+                Log($"Scaffolding completed for {fileName}");
             }
             catch (Exception ex)
             {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 Log($"Exception: {ex.Message}");
+            } finally
+            {
+                isScaffolding = false;
+                btnRunCodeScaffold.Enabled = !isScaffolding;
             }
         }
 
