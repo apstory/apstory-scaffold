@@ -38,7 +38,7 @@ namespace Apstory.Scaffold.VisualStudio
     [Guid(ApstoryScaffoldVisualStudioPackage.PackageGuidString)]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [ProvideToolWindow(typeof(Apstory.Scaffold.VisualStudio.Window.ScaffoldWindow))]
-    public sealed class ApstoryScaffoldVisualStudioPackage : AsyncPackage
+    public sealed partial class ApstoryScaffoldVisualStudioPackage : AsyncPackage
     {
         /// <summary>
         /// Apstory.Scaffold.VisualStudioPackage GUID string.
@@ -70,56 +70,33 @@ namespace Apstory.Scaffold.VisualStudio
                 var menuItem = new MenuCommand(ExecuteCommand, cmdId);
                 commandService.AddCommand(menuItem);
             }
+
+            this.scaffoldAppLocation = ExecuteCmd("where.exe", scaffoldApp).Trim('\r','\n',' ');
+            Log($"Found Scaffold App at {this.scaffoldAppLocation}");
         }
 
         private void ExecuteCommand(object sender, EventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            GetActiveFileContent();
-        }
-
-        private void GetActiveFileContent()
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
-            EnvDTE.DTE app = (EnvDTE.DTE)GetService(typeof(SDTE));
-            if (app.ActiveDocument != null && app.ActiveDocument.Type == "Text")
+            try
             {
-                EnvDTE.TextDocument textDoc = (EnvDTE.TextDocument)app.ActiveDocument.Object("TextDocument");
+                var solutionDirectory = GetSolutionDirectory();
+                var activeDocPath = GetActiveDocumentPath();
+                var fileName = Path.GetFileName(activeDocPath);
+                if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log($"Scaffolding only supports .sql files");
+                    return;
+                }
 
-                var editPoint = textDoc.StartPoint.CreateEditPoint();
-                var documentText = editPoint.GetText(textDoc.EndPoint.CreateEditPoint());
-
-                var filePath = Path.Combine(app.ActiveDocument.Path, app.ActiveDocument.FullName);
-                WriteToOutputWindow($"Active Path: {filePath}");
-
-                // Write the content to the Output window
-                WriteToOutputWindow($"Currently open document content: {documentText}");
+                Log($"Executing Code Scaffold for {fileName} in {solutionDirectory}");
+                var entityName = fileName.Replace(".sql", string.Empty);
+                ExecuteScaffolding(entityName, solutionDirectory);
             }
-        }
-
-
-        private void WriteToOutputWindow(string message)
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-
-            // Get the Output window service
-            var outputWindow = (IVsOutputWindow)this.GetService(typeof(SVsOutputWindow));
-            if (outputWindow == null)
-                return;
-
-            // Create a new pane or get the existing one
-            Guid generalPaneGuid = VSConstants.GUID_OutWindowGeneralPane;
-            outputWindow.GetPane(ref generalPaneGuid, out IVsOutputWindowPane outputPane);
-
-            if (outputPane == null)
+            catch (Exception ex)
             {
-                outputWindow.CreatePane(ref generalPaneGuid, "Apstory Scaffold", 1, 1);
-                outputWindow.GetPane(ref generalPaneGuid, out outputPane);
+                Log($"Exception: {ex.Message}");
             }
-
-            // Write message to the pane
-            outputPane.OutputString(message + "\n");
         }
 
         #endregion

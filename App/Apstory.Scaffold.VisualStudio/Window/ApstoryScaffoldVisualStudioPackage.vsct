@@ -51,7 +51,7 @@
     <Buttons>
       <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryScaffoldCommandId" priority="0x0100" type="Button">
         <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
-        <Icon guid="guidImages" id="bmpPic1" />
+        <Icon guid="guidImages" id="bmpPicArrows" />
         <Strings>
           <ButtonText>Invoke Apstory Scaffold</ButtonText>
         </Strings>

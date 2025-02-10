@@ -20,4 +20,10 @@
     <ProjectReference Include="..\..\Model\Apstory.Scaffold.Model\Apstory.Scaffold.Model.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="runtimeconfig.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
