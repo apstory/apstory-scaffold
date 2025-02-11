@@ -31,8 +31,6 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             try
             {
-                
-
                 await _lockingService.AcquireLockAsync(dalRepositoryPath);
 
                 var existingFileContent = FileUtils.SafeReadAllText(dalRepositoryPath);
@@ -211,8 +209,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private ClassDeclarationSyntax CreateCSharpClass(SqlStoredProcedure sqlStoredProcedure)
         {
             return SyntaxFactory.ClassDeclaration(GetClassName(sqlStoredProcedure))
-                                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.PartialKeyword)))
-                                .WithBaseList(SyntaxFactory.BaseList(SyntaxFactory.SingletonSeparatedList<BaseTypeSyntax>(SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName(GetInterfaceName(sqlStoredProcedure))))));
+                                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword),SyntaxFactory.Token(SyntaxKind.PartialKeyword)))
+                                .WithBaseList(SyntaxFactory.BaseList(
+                                                SyntaxFactory.SeparatedList<BaseTypeSyntax>(new[]
+                                                {
+                                                    SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName("BaseRepository")),
+                                                    SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName(GetInterfaceName(sqlStoredProcedure)))
+                                                })));
         }
 
         private string GenerateStoredProcedureMethod(SqlStoredProcedure sqlStoredProcedure)
