@@ -4,7 +4,9 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
+using Microsoft.VisualStudio.TextTemplating.VSHost;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.IO;
@@ -46,7 +48,8 @@ namespace Apstory.Scaffold.VisualStudio
         public const string PackageGuidString = "033376d0-4630-4068-89d7-e6629cfe6645";
 
         private const string guidApstoryScaffoldVisualStudioPackageCmdSet = "bf130a03-5202-4448-8173-02f6b1d00bd2"; // Match `guidApstoryScaffoldVisualStudioPackageCmdSet`
-        private const int ToolbarTestCommandId = 0x1051; // Matches `ToolbarTestCommandId`
+        private const int ToolbarApstoryScaffoldCommandId = 0x1051;
+        private const int ContextMenuScaffoldCommandId = 0x1052;
 
         private MenuCommand btnRunCodeScaffold;
         #region Package Members
@@ -60,72 +63,27 @@ namespace Apstory.Scaffold.VisualStudio
         /// <returns>A task representing the async work of package initialization, or an already completed task if there is none. Do not return null from this method.</returns>
         protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
-            // When initialized asynchronously, the current thread may be a background thread at this point.
-            // Do any initialization that requires the UI thread after switching to the UI thread.
             await this.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
             OleMenuCommandService commandService = await GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
             if (commandService != null)
             {
-                var cmdId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarTestCommandId);
-                btnRunCodeScaffold = new MenuCommand(ExecuteCommand, cmdId);
+                //Add toolbar button
+                var cmdId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryScaffoldCommandId);
+                btnRunCodeScaffold = new MenuCommand(ExecuteToolbarCodeScaffold, cmdId);
                 commandService.AddCommand(btnRunCodeScaffold);
+
+                //Add right-click context menu button
+                var cmdContextCodeScaffold = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ContextMenuScaffoldCommandId);
+                var menuCommand = new OleMenuCommand(ExecuteContextMenuCodeScaffold, cmdContextCodeScaffold);
+                commandService?.AddCommand(menuCommand);
             }
+
 
             this.scaffoldAppLocation = ExecuteCmd("where.exe", scaffoldApp).Trim('\r', '\n', ' ');
             Log($"Found Scaffold App at {this.scaffoldAppLocation}");
         }
 
-        private bool isScaffolding = false;
-        private async void ExecuteCommand(object sender, EventArgs e)
-        {
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            if (isScaffolding)
-            {
-                Log("Scaffolding is already running. Please wait.");
-                return;
-            }
-
-            isScaffolding = true;
-            btnRunCodeScaffold.Enabled = !isScaffolding;
-
-            try
-            {
-                var solutionDirectory = GetSolutionDirectory();
-                var activeDocPath = GetActiveDocumentPath();
-                var fileName = Path.GetFileName(activeDocPath);
-                if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
-                {
-                    Log($"Scaffolding only supports .sql files");
-                    return;
-                }
-
-                Log($"Executing Code Scaffold for {fileName} in {solutionDirectory}");
-                var schema = GetSchemaFromPath(activeDocPath);
-                var tableOrProc = fileName.Replace(".sql", string.Empty);
-
-                ExecuteScaffolding($"{schema}.{tableOrProc}", solutionDirectory);
-
-                // Run the process on a background thread
-                var logs = await Task.Run(() => ExecuteScaffolding($"{schema}.{tableOrProc}", solutionDirectory));
-
-                // Return to the UI thread for logging
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                foreach (var log in logs)
-                    Log(log);
-
-                Log($"Scaffolding completed for {fileName}");
-            }
-            catch (Exception ex)
-            {
-                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                Log($"Exception: {ex.Message}");
-            } finally
-            {
-                isScaffolding = false;
-                btnRunCodeScaffold.Enabled = !isScaffolding;
-            }
-        }
 
         #endregion
     }

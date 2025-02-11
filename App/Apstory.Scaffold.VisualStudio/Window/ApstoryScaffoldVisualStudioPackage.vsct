@@ -40,11 +40,16 @@
           <CommandName>Apstory Scaffold</CommandName>
         </Strings>
       </Menu>
+
     </Menus>
 
     <Groups>
       <Group guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" priority="0x0000">
         <Parent guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="Toolbar" />
+      </Group>
+
+      <Group guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="MyMenuGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_ITEMNODE"/>
       </Group>
     </Groups>
 
@@ -56,7 +61,17 @@
           <ButtonText>Run Code Scaffold</ButtonText>
         </Strings>
       </Button>
+
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ContextMenuScaffoldCommandId" priority="0x0101" type="Button">
+        <Parent guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="MyMenuGroup" />
+        <Icon guid="guidImages" id="bmpRun" />
+        <Strings>
+          <ButtonText>Run Code Scaffold</ButtonText>
+        </Strings>
+      </Button>
     </Buttons>
+
+
 
 
     <!--The bitmaps section is used to define the bitmaps that are used for the commands.-->
@@ -79,10 +94,15 @@
 
     <!-- This is the guid used to group the menu commands together -->
     <GuidSymbol name="guidToolbarApstoryScaffoldCommandPackageCmdSet" value="{bf130a03-5202-4448-8173-02f6b1d00bd2}">
-      
+
       <IDSymbol name="Toolbar" value="0x1000" />
       <IDSymbol name="ToolbarGroup" value="0x1050" />
       <IDSymbol name="ToolbarApstoryScaffoldCommandId" value="0x1051" />
+
+      <IDSymbol name="ContextMenuScaffoldCommandId" value="0x1052" />
+
+      <IDSymbol name="SubMenu" value="0x1001"/>
+      <IDSymbol name="MyMenuGroup" value="0x1020" />
     </GuidSymbol>
 
     <GuidSymbol name="guidImages" value="{178b5164-e89b-4490-aff5-7f1fd4b28fd6}" >

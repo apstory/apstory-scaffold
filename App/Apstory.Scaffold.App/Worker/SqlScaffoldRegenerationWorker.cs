@@ -87,56 +87,58 @@ namespace Apstory.Scaffold.App.Worker
             }
             else
             {
-                var argSplit = regenArgs.Split(".");
-                if (argSplit.Length > 1)
+                var entities = regenArgs.Split(";");
+                foreach (var regenEntry in entities)
                 {
-                    schema = argSplit[0];
-                    entityName = argSplit[1];
-                }
-
-                if (string.IsNullOrWhiteSpace(entityName))
-                {
-                    //Regenerate entire schema's table and procs (-regen=dbo)
-
-                    Logger.LogInfo($"Regenerate entire {schema} schema");
-
-                    var schemaTablesPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Tables");
-                    var allTablePaths = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
-                    foreach (var tablePath in allTablePaths)
+                    var argSplit = regenEntry.Split(".");
+                    if (argSplit.Length > 1)
                     {
-                        await RegenerateTable(tablePath);
-                        await RegenerateTableStoredProcedures(tablePath);
+                        schema = argSplit[0];
+                        entityName = argSplit[1];
                     }
-                }
-                else
-                {
-                    //Regenerate specific entity (-regen=dbo.table // -regen=dbo.table_procName)
 
-                    var tablePath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Tables", $"{entityName}.sql");
-                    if (File.Exists(tablePath))
+                    if (string.IsNullOrWhiteSpace(entityName))
                     {
-                        Logger.LogInfo($"Regenerate Table {schema}.{entityName}");
+                        //Regenerate entire schema's table and procs (-regen=dbo)
 
-                        await RegenerateTable(tablePath);
-                        await RegenerateTableStoredProcedures(tablePath);
+                        Logger.LogInfo($"Regenerate entire {schema} schema");
+
+                        var schemaTablesPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Tables");
+                        var allTablePaths = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
+                        foreach (var tablePath in allTablePaths)
+                        {
+                            await RegenerateTable(tablePath);
+                            await RegenerateTableStoredProcedures(tablePath);
+                        }
                     }
                     else
                     {
-                        var storedProcPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Stored Procedure", $"{entityName}.sql");
-                        if (File.Exists(storedProcPath))
+                        //Regenerate specific entity (-regen=dbo.table // -regen=dbo.table_procName)
+
+                        var tablePath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Tables", $"{entityName}.sql");
+                        if (File.Exists(tablePath))
                         {
-                            Logger.LogInfo($"Regenerate Stored Procedure {schema}.{entityName}");
-                            await RegenerateStoredProcedure(storedProcPath);
+                            Logger.LogInfo($"Regenerate Table {schema}.{entityName}");
+
+                            await RegenerateTable(tablePath);
+                            await RegenerateTableStoredProcedures(tablePath);
                         }
                         else
                         {
-                            Logger.LogError($"Could not find a table or stored procedure {schema}.{entityName}");
+                            var storedProcPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Stored Procedure", $"{entityName}.sql");
+                            if (File.Exists(storedProcPath))
+                            {
+                                Logger.LogInfo($"Regenerate Stored Procedure {schema}.{entityName}");
+                                await RegenerateStoredProcedure(storedProcPath);
+                            }
+                            else
+                            {
+                                Logger.LogError($"Could not find a table or stored procedure {schema}.{entityName}");
+                            }
                         }
                     }
                 }
             }
-
-
 
             _lifetime.StopApplication();
         }

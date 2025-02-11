@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Documents;
 
@@ -178,5 +179,33 @@ namespace Apstory.Scaffold.VisualStudio
 
             return string.Empty;
         }
+
+        private List<string> GetSelectedItemPaths()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            List<string> selectedPaths = new List<string>();
+
+            var dte = (EnvDTE.DTE)ServiceProvider.GlobalProvider.GetService(typeof(EnvDTE.DTE));
+            if (dte == null) return selectedPaths;
+
+            var selectedObjects = dte.SelectedItems as EnvDTE.SelectedItems;
+            if (selectedObjects != null)
+            {
+                foreach (EnvDTE.SelectedItem selectedItem in selectedObjects)
+                {
+                    if (selectedItem.ProjectItem != null)
+                    {
+                        string fullPath = selectedItem.ProjectItem.FileNames[1]; // Index 1 gives the full path
+                        if (!string.IsNullOrEmpty(fullPath))
+                        {
+                            selectedPaths.Add(fullPath);
+                        }
+                    }
+                }
+            }
+
+            return selectedPaths;
+        }
+
     }
 }
