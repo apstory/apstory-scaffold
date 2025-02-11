@@ -199,7 +199,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetDomainInterfaceNamespace(sqlStoredProcedure))),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetDalInterfaceNamespace(sqlStoredProcedure))),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetModelNamespace(sqlStoredProcedure))))
-                                    .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDalNamespace(sqlStoredProcedure)))
+                                    .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDomainNamespace(sqlStoredProcedure)))
                                     .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(CreateCSharpClass(sqlStoredProcedure))));
 
             return root;
@@ -315,9 +315,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return _config.Namespaces.ModelNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
 
-        private string GetDalNamespace(SqlStoredProcedure sqlStoredProcedure)
+        private string GetDomainNamespace(SqlStoredProcedure sqlStoredProcedure)
         {
-            return _config.Namespaces.DalNamespace.ToSchemaString(sqlStoredProcedure.Schema);
+            return _config.Namespaces.DomainNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
 
         private string GetDalInterfaceNamespace(SqlStoredProcedure sqlStoredProcedure)

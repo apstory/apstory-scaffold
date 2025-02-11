@@ -23,7 +23,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         public async Task<ScaffoldResult> DeleteCode(SqlStoredProcedure sqlStoredProcedure)
         {
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
             if (methodName.StartsWith("InsUpd", StringComparison.OrdinalIgnoreCase) ||
                 methodName.StartsWith("Del", StringComparison.OrdinalIgnoreCase))
                 return ScaffoldResult.Skipped;
@@ -67,7 +67,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         public async Task<ScaffoldResult> GenerateCode(SqlStoredProcedure sqlStoredProcedure)
         {
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
             if (methodName.StartsWith("InsUpd", StringComparison.OrdinalIgnoreCase) ||
                 methodName.StartsWith("Del", StringComparison.OrdinalIgnoreCase))
                 return ScaffoldResult.Skipped;
@@ -127,7 +127,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string CreateOrUpdateMethod(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)
         {
             var interfaceName = GetInterfaceName(sqlStoredProcedure);
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
 
             var interfaceDeclaration = root.DescendantNodes()
                                            .OfType<InterfaceDeclarationSyntax>()
@@ -168,7 +168,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)
         {
             var interfaceName = GetInterfaceName(sqlStoredProcedure);
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
 
             var interfaceDeclaration = root.DescendantNodes()
                                        .OfType<InterfaceDeclarationSyntax>()
@@ -203,7 +203,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var root = SyntaxFactory.CompilationUnit()
                                     .AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetModelNamespace(sqlStoredProcedure))))
-                                    .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDomainNamespace(sqlStoredProcedure)))
+                                    .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDomainInterfaceNamespace(sqlStoredProcedure)))
                                     .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(CreateCSharpInterface(sqlStoredProcedure))));
 
             return root;
@@ -217,7 +217,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GenerateInterfaceMethod(SqlStoredProcedure sqlStoredProcedure)
         {
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
 
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
             if (useSeperateParameters)
@@ -240,12 +240,17 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 return $"Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()});";
         }
 
+        private string GetMethodNameWithFK(SqlStoredProcedure sqlStoredProcedure)
+        {
+            return GetMethodName(sqlStoredProcedure) + "IncludeForeignKeys";
+        }
+
         private string GetMethodName(SqlStoredProcedure sqlStoredProcedure)
         {
             return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
                                                          .Replace($"{sqlStoredProcedure.TableName}_", "")
                                                          .Replace("GetBy", $"Get{sqlStoredProcedure.TableName}By")
-                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}") + "IncludeForeignKeys";
+                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}");
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)
@@ -258,9 +263,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return _config.Namespaces.ModelNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
 
-        private string GetDomainNamespace(SqlStoredProcedure sqlStoredProcedure)
+        private string GetDomainInterfaceNamespace(SqlStoredProcedure sqlStoredProcedure)
         {
-            return _config.Namespaces.DomainNamespace.ToSchemaString(sqlStoredProcedure.Schema);
+            return _config.Namespaces.DomainInterfaceNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
     }
 }

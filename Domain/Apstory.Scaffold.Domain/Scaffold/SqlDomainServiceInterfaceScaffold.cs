@@ -194,7 +194,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var root = SyntaxFactory.CompilationUnit()
                                     .AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetModelNamespace(sqlStoredProcedure))))
-                                    .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDomainNamespace(sqlStoredProcedure)))
+                                    .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDomainInterfaceNamespace(sqlStoredProcedure)))
                                     .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(CreateCSharpInterface(sqlStoredProcedure))));
 
             return root;
@@ -255,9 +255,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return _config.Namespaces.ModelNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
 
-        private string GetDomainNamespace(SqlStoredProcedure sqlStoredProcedure)
+        private string GetDomainInterfaceNamespace(SqlStoredProcedure sqlStoredProcedure)
         {
-            return _config.Namespaces.DomainNamespace.ToSchemaString(sqlStoredProcedure.Schema);
+            return _config.Namespaces.DomainInterfaceNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
     }
 }

@@ -87,7 +87,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 }
 
                 var registrationStatement = SyntaxFactory.ParseStatement(
-                    $"services.AddTransient<I{sqlStoredProcedure.TableName}Service, {sqlStoredProcedure.TableName}Service>(x => new {sqlStoredProcedure.TableName}Service(connectionString));"
+                    $"services.AddTransient<I{sqlStoredProcedure.TableName}Service, {sqlStoredProcedure.TableName}Service>();"
                 );
                 var updatedFileContent = UpdateMethodStatements(syntaxNode, sqlStoredProcedure, registrationStatement);
                 if (!existingFileContent.Equals(updatedFileContent))

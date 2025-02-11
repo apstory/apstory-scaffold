@@ -195,8 +195,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var root = SyntaxFactory.CompilationUnit()
                                     .AddUsings(
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetCommonUtilNamespace(sqlStoredProcedure))),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetDalInterfaceNamespace(sqlStoredProcedure))),
-                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetModelNamespace(sqlStoredProcedure))),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Data.SqlClient")),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Data")),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Dapper")))
@@ -209,14 +209,28 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private ClassDeclarationSyntax CreateCSharpClass(SqlStoredProcedure sqlStoredProcedure)
         {
             return SyntaxFactory.ClassDeclaration(GetClassName(sqlStoredProcedure))
-                                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword),SyntaxFactory.Token(SyntaxKind.PartialKeyword)))
+                                .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.PartialKeyword)))
                                 .WithBaseList(SyntaxFactory.BaseList(
                                                 SyntaxFactory.SeparatedList<BaseTypeSyntax>(new[]
                                                 {
                                                     SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName("BaseRepository")),
                                                     SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName(GetInterfaceName(sqlStoredProcedure)))
-                                                })));
+                                                })))
+                                .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(
+                                    SyntaxFactory.ConstructorDeclaration(GetClassName(sqlStoredProcedure))
+                                        .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PublicKeyword)))
+                                        .WithParameterList(SyntaxFactory.ParameterList(
+                                            SyntaxFactory.SingletonSeparatedList(
+                                                SyntaxFactory.Parameter(SyntaxFactory.Identifier("connectionString"))
+                                                    .WithType(SyntaxFactory.ParseTypeName("string")))))
+                                        .WithInitializer(SyntaxFactory.ConstructorInitializer(
+                                            SyntaxKind.BaseConstructorInitializer,
+                                            SyntaxFactory.ArgumentList(
+                                                SyntaxFactory.SingletonSeparatedList(
+                                                    SyntaxFactory.Argument(SyntaxFactory.IdentifierName("connectionString"))))))
+                                        .WithBody(SyntaxFactory.Block())));
         }
+
 
         private string GenerateStoredProcedureMethod(SqlStoredProcedure sqlStoredProcedure)
         {
@@ -344,6 +358,11 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string GetDalInterfaceNamespace(SqlStoredProcedure sqlStoredProcedure)
         {
             return _config.Namespaces.DalInterfaceNamespace.ToSchemaString(sqlStoredProcedure.Schema);
+        }
+
+        private string GetCommonUtilNamespace(SqlStoredProcedure sqlStoredProcedure)
+        {
+            return _config.Namespaces.CommonUtilNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
     }
 }

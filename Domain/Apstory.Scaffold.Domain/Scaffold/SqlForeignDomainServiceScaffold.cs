@@ -24,7 +24,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         public async Task<ScaffoldResult> DeleteCode(SqlStoredProcedure sqlStoredProcedure)
         {
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
             if (methodName.StartsWith("InsUpd", StringComparison.OrdinalIgnoreCase) ||
                 methodName.StartsWith("Del", StringComparison.OrdinalIgnoreCase))
                 return ScaffoldResult.Skipped;
@@ -69,7 +69,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         public async Task<ScaffoldResult> GenerateCode(SqlTable sqlTable, SqlStoredProcedure sqlStoredProcedure)
         {
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
             if (methodName.StartsWith("InsUpd", StringComparison.OrdinalIgnoreCase) ||
                 methodName.StartsWith("Del", StringComparison.OrdinalIgnoreCase))
                 return ScaffoldResult.Skipped;
@@ -135,7 +135,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)
         {
             var className = GetClassName(sqlStoredProcedure);
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
 
             var classDeclaration = root.DescendantNodes()
                                        .OfType<ClassDeclarationSyntax>()
@@ -283,12 +283,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string GenerateStoredProcedureMethod(SqlTable sqlTable, SqlStoredProcedure sqlStoredProcedure)
         {
             var sb = new StringBuilder();
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
 
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
             if (useSeperateParameters)
             {
-                sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure.Schema)}.{sqlStoredProcedure.TableName}>> {GetMethodName(sqlStoredProcedure)}(");
+                sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure.Schema)}.{sqlStoredProcedure.TableName}>> {GetMethodNameWithFK(sqlStoredProcedure)}(");
 
                 foreach (var param in sqlStoredProcedure.Parameters)
                     if (!param.ColumnName.Equals("RetMsg", StringComparison.OrdinalIgnoreCase))
@@ -321,11 +321,16 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 sb.AppendLine($"public async Task<{GetModelNamespace(sqlStoredProcedure.Schema)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure.Schema)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()})");
                 sb.AppendLine("{");
-                sb.AppendLine($"    return await _repo.{GetMethodName(sqlStoredProcedure)}({sqlStoredProcedure.TableName.ToCamelCase()});");
+                sb.AppendLine($"    return await _repo.{GetMethodNameWithFK(sqlStoredProcedure)}({sqlStoredProcedure.TableName.ToCamelCase()});");
                 sb.AppendLine("}");
             }
 
             return sb.ToString();
+        }
+
+        private string GetMethodNameWithFK(SqlStoredProcedure sqlStoredProcedure)
+        {
+            return GetMethodName(sqlStoredProcedure) + "IncludeForeignKeys";
         }
 
         private string GetMethodName(SqlStoredProcedure sqlStoredProcedure)
@@ -333,7 +338,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
                                                          .Replace($"{sqlStoredProcedure.TableName}_", "")
                                                          .Replace("GetBy", $"Get{sqlStoredProcedure.TableName}By")
-                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}") + "IncludeForeignKeys";
+                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}");
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)

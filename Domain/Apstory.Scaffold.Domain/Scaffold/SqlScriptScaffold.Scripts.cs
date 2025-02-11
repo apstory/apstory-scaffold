@@ -5,7 +5,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 {
     public partial class SqlScriptFileScaffold
     {
-        private string[] skipDTDefaults = new string[] { "CreateDT", "UpdateDT", "IsActive" };
+        private string[] skipDTDefaults = new string[] { "CreateDT", "UpdateDT" };
 
         public string GenerateInsertUpdateProcedure(SqlTable table)
         {
