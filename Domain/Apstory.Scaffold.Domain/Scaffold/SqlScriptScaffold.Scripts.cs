@@ -572,6 +572,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     else
                         columnDescriptions[s.ColumnName] = "NOT_NULLABLE_NO_DEFAULT";
                 }
+
+                if (s.ColumnName == "IsActive")
+                    columnDescriptions[s.ColumnName] = "Z_LAST";
             });
 
             return table.Columns.OrderBy(s => columnDescriptions[s.ColumnName])
