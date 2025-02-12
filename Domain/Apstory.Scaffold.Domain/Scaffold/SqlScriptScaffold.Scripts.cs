@@ -24,7 +24,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             // Add parameters for each column
             sb.Append("  (");
-            
+
             var sortedColumns = GetSortedColumnsByNullableDefaultType(table);
             var sortedColumnsNoDT = sortedColumns.Where(s => !skipDTDefaults.Contains(s.ColumnName)).ToList();
             var sortedColumnsNoDtNoPK = sortedColumnsNoDT.Where(s => s.ColumnName != primaryColumn.ColumnName).ToList();
@@ -53,14 +53,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             foreach (var column in sortedColumnsNoDtNoPK)
                 sb.Append($"[{column.ColumnName}],");
-            sb.AppendLine($"[IsActive])");
-            sb.AppendLine(string.Empty);
+            sb.Length--;
+            sb.AppendLine(")");
             sb.AppendLine("      VALUES");
             sb.Append("        (");
 
             foreach (var column in sortedColumnsNoDtNoPK)
                 sb.Append($"@{column.ColumnName},");
-            sb.Append($"@IsActive");
+            sb.Length--;
             sb.AppendLine(");");
 
             sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = SCOPE_IDENTITY();");
@@ -73,7 +73,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             foreach (var column in sortedColumnsNoDtNoPK)
                 sb.Append($"[{column.ColumnName}]=@{column.ColumnName},");
 
-            sb.Append($"[UpdateDT]=GETDATE(),[IsActive]=@IsActive");
+            sb.Append($"[UpdateDT]=GETDATE()");
             sb.AppendLine("");
             sb.AppendLine($"        WHERE ([{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName});");
 
@@ -323,7 +323,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("    (");
             sb.AppendLine($"      SELECT COUNT({primaryColumn.ColumnName}) AS TotalRows FROM [{table.Schema}].[{table.TableName}]");
             sb.Append("      WHERE");
-            
+
             // Add filtering conditions for foreign keys again in the count query
             foreach (var column in foreignColumns)
                 sb.Append($" (@{column.ColumnName} IS NULL OR [{column.ColumnName}] = @{column.ColumnName}) AND");
