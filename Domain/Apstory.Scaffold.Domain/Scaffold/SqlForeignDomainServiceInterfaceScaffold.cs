@@ -65,11 +65,16 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
         }
 
-        public async Task<ScaffoldResult> GenerateCode(SqlStoredProcedure sqlStoredProcedure)
+        public async Task<ScaffoldResult> GenerateCode(SqlTable sqlTable, SqlStoredProcedure sqlStoredProcedure)
         {
             var methodName = GetMethodNameWithFK(sqlStoredProcedure);
             if (methodName.StartsWith("InsUpd", StringComparison.OrdinalIgnoreCase) ||
                 methodName.StartsWith("Del", StringComparison.OrdinalIgnoreCase))
+                return ScaffoldResult.Skipped;
+
+            //Do not generate if we dont have any FK constraints
+            var foreignConstraints = sqlTable.Constraints.Where(s => s.ConstraintType == Model.Enum.ConstraintType.ForeignKey);
+            if (!foreignConstraints.Any())
                 return ScaffoldResult.Skipped;
 
             var scaffoldingResult = ScaffoldResult.Updated;

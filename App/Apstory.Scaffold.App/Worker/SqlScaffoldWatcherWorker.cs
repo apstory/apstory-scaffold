@@ -202,7 +202,7 @@ namespace Apstory.Scaffold.App.Worker
                     var domainResult = await _sqlDomainServiceScaffold.GenerateCode(sqlStoredProcedureInfo);
                     await _sqlDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
                     await _sqlForeignDomainServiceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedureInfo);
-                    await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
+                    await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedureInfo);
 
                     if (repoResult == Model.Enum.ScaffoldResult.Created)
                         await _sqlDalRepositoryServiceCollectionExtensionScaffold.GenerateCode(sqlStoredProcedureInfo);
