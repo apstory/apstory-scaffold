@@ -128,7 +128,7 @@ namespace Apstory.Scaffold.App.Worker
                         }
                         else
                         {
-                            var storedProcPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Stored Procedure", $"{entityName}.sql");
+                            var storedProcPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Stored Procedures", $"{entityName}.sql");
                             if (File.Exists(storedProcPath))
                             {
                                 Logger.LogInfo($"Regenerate Stored Procedure {schema}.{entityName}");

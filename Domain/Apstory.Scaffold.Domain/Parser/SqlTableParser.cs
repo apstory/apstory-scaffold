@@ -34,7 +34,7 @@ namespace Apstory.Scaffold.Domain.Parser
                                    .ToList();
 
             // Define regex to extract column details
-            var columnRegex = new Regex(@"\[(\w+)\]\s*(\w+)\s?(\(?\d+\))?.*?(DEFAULT\s*\(.*\))?\s+(NOT NULL|NULL)", RegexOptions.IgnoreCase);
+            var columnRegex = new Regex(@"\[(\w+)\]\s*(\w+)\s?(\(?\d+\))?.*?(DEFAULT\s*\(.*\))?\s?(NOT\s+NULL|NULL)", RegexOptions.IgnoreCase);
 
             // Parse columns
             foreach (var line in columnLines)
