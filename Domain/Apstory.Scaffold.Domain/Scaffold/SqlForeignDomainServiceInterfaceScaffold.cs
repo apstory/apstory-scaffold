@@ -247,20 +247,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GetMethodNameWithFK(SqlStoredProcedure sqlStoredProcedure)
         {
-            return GetMethodName(sqlStoredProcedure) + "IncludeForeignKeys";
-        }
-
-        private string GetMethodName(SqlStoredProcedure sqlStoredProcedure)
-        {
-            return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
-                                                         .Replace($"{sqlStoredProcedure.TableName}_", "")
-                                                         .Replace("GetBy", $"Get{sqlStoredProcedure.TableName}By")
-                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}");
+            return sqlStoredProcedure.GetMethodName() + "IncludeForeignKeys";
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)
         {
-            return $"I{sqlStoredProcedure.TableName}Service";
+            return $"I{sqlStoredProcedure.TableName.ToPascalCase()}Service";
         }
 
         private string GetModelNamespace(SqlStoredProcedure sqlStoredProcedure)

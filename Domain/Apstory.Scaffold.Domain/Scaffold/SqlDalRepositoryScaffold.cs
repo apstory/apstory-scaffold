@@ -118,7 +118,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)
         {
             var className = GetClassName(sqlStoredProcedure);
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = sqlStoredProcedure.GetMethodName();
 
             var classDeclaration = root.DescendantNodes()
                                        .OfType<ClassDeclarationSyntax>()
@@ -145,7 +145,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string AddUpdateMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)
         {
             var className = GetClassName(sqlStoredProcedure);
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = sqlStoredProcedure.GetMethodName();
 
             var classDeclaration = root.DescendantNodes()
                                        .OfType<ClassDeclarationSyntax>()
@@ -235,7 +235,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string GenerateStoredProcedureMethod(SqlStoredProcedure sqlStoredProcedure)
         {
             var sb = new StringBuilder();
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = sqlStoredProcedure.GetMethodName();
             bool hasReturnValues = false;
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
             bool returnLists = useSeperateParameters;
@@ -325,24 +325,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sb.ToString();
         }
 
-        private string GetMethodName(SqlStoredProcedure sqlStoredProcedure)
-        {
-            return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
-                                                         .Replace($"{sqlStoredProcedure.TableName}_", "")
-                                                         .Replace("GetBy", $"Get{sqlStoredProcedure.TableName}By")
-                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}")
-                                                         .Replace("DelHrd", $"Del{sqlStoredProcedure.TableName}Hrd")
-                                                         .Replace("DelSft", $"Del{sqlStoredProcedure.TableName}Sft");
-        }
-
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)
         {
-            return $"I{sqlStoredProcedure.TableName}Repository";
+            return $"I{sqlStoredProcedure.TableName.ToPascalCase()}Repository";
         }
 
         private string GetClassName(SqlStoredProcedure sqlStoredProcedure)
         {
-            return $"{sqlStoredProcedure.TableName}Repository";
+            return $"{sqlStoredProcedure.TableName.ToPascalCase()}Repository";
         }
 
         private string GetModelNamespace(SqlStoredProcedure sqlStoredProcedure)

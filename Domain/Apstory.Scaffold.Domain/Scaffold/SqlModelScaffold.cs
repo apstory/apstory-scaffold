@@ -167,7 +167,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GetClassName(SqlTable sqlTable)
         {
-            return sqlTable.TableName;
+            return sqlTable.TableName.ToPascalCase();
         }
     }
 }

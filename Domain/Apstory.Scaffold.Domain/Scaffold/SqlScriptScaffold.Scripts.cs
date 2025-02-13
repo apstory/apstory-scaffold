@@ -560,21 +560,21 @@ namespace Apstory.Scaffold.Domain.Scaffold
             table.Columns.ForEach(s =>
             {
                 columnIndexes[s.ColumnName] = i++;
-                columnDescriptions[s.ColumnName] = "NULLABLE";
+                columnDescriptions[s.ColumnName] = "3_NULLABLE";
 
                 if (s.ColumnName.Equals(primaryKey.Column))
-                    columnDescriptions[s.ColumnName] = "NULLABLE";
+                    columnDescriptions[s.ColumnName] = "3_NULLABLE";
                 else if (!s.IsNullable)
                 {
 
                     if (string.IsNullOrWhiteSpace(s.DefaultValue))
-                        columnDescriptions[s.ColumnName] = "NOT_NULLABLE_W_DEFAULT";
+                        columnDescriptions[s.ColumnName] = "1_NOT_NULLABLE_W_DEFAULT";
                     else
-                        columnDescriptions[s.ColumnName] = "NOT_NULLABLE_NO_DEFAULT";
+                        columnDescriptions[s.ColumnName] = "2_NOT_NULLABLE_NO_DEFAULT";
                 }
 
                 if (s.ColumnName == "IsActive")
-                    columnDescriptions[s.ColumnName] = "Z_LAST";
+                    columnDescriptions[s.ColumnName] = "4_LAST";
             });
 
             return table.Columns.OrderBy(s => columnDescriptions[s.ColumnName])

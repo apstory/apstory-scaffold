@@ -20,7 +20,7 @@ namespace Apstory.Scaffold.Domain.Parser
             if (tableMatch.Success)
             {
                 table.Schema = tableMatch.Groups[1].Value;
-                table.TableName = tableMatch.Groups[2].Value;
+                table.TableName = tableMatch.Groups[2].Value.ToPascalCase();
             }
 
             // Regex pattern to match single-line and multi-line comments

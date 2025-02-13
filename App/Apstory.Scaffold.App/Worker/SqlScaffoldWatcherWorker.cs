@@ -216,7 +216,7 @@ namespace Apstory.Scaffold.App.Worker
                     var fileName = Path.GetFileName(filePath);
                     var fileParts = fileName.Replace("zgen_", string.Empty).Replace(".sql", string.Empty).Split("_");
                     var sqlStoredProcedureInfo = new SqlStoredProcedure();
-                    sqlStoredProcedureInfo.TableName = fileParts[0];
+                    sqlStoredProcedureInfo.TableName = fileParts[0].ToPascalCase();
                     sqlStoredProcedureInfo.StoredProcedureName = fileName.Replace(".sql", string.Empty);
                     sqlStoredProcedureInfo.Schema = GetSchemaFromPath(filePath);
 
@@ -269,7 +269,7 @@ namespace Apstory.Scaffold.App.Worker
                     var fileName = Path.GetFileName(e.FullPath);
                     var tableInfo = new SqlTable();
 
-                    tableInfo.TableName = fileName.Replace(".sql", string.Empty);
+                    tableInfo.TableName = fileName.Replace(".sql", string.Empty).ToPascalCase();
                     tableInfo.Schema = GetSchemaFromPath(e.FullPath);
 
                     await _sqlModelScaffold.DeleteCode(tableInfo);

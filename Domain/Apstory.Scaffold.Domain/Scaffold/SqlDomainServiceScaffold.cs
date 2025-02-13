@@ -119,7 +119,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string CreateOrUpdateMethod(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)
         {
             var className = GetClassName(sqlStoredProcedure);
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = sqlStoredProcedure.GetMethodName();
 
             var classDeclaration = root.DescendantNodes()
                                        .OfType<ClassDeclarationSyntax>()
@@ -161,7 +161,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)
         {
             var className = GetClassName(sqlStoredProcedure);
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = sqlStoredProcedure.GetMethodName();
 
             var classDeclaration = root.DescendantNodes()
                                        .OfType<ClassDeclarationSyntax>()
@@ -241,7 +241,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string GenerateStoredProcedureMethod(SqlStoredProcedure sqlStoredProcedure)
         {
             var sb = new StringBuilder();
-            var methodName = GetMethodName(sqlStoredProcedure);
+            var methodName = sqlStoredProcedure.GetMethodName();
 
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
             bool returnsData = !methodName.StartsWith("Del");
@@ -265,9 +265,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine("{");
 
                 if (returnsData)
-                    sb.Append($"    return await _repo.{GetMethodName(sqlStoredProcedure)}(");
+                    sb.Append($"    return await _repo.{methodName}(");
                 else
-                    sb.Append($"    await _repo.{GetMethodName(sqlStoredProcedure)}(");
+                    sb.Append($"    await _repo.{methodName}(");
 
                 foreach (var param in sqlStoredProcedure.Parameters)
                     if (!param.ColumnName.Equals("RetMsg", StringComparison.OrdinalIgnoreCase))
@@ -283,31 +283,21 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 sb.AppendLine($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()})");
                 sb.AppendLine("{");
-                sb.AppendLine($"    return await _repo.{GetMethodName(sqlStoredProcedure)}({sqlStoredProcedure.TableName.ToCamelCase()});");
+                sb.AppendLine($"    return await _repo.{methodName}({sqlStoredProcedure.TableName.ToCamelCase()});");
                 sb.AppendLine("}");
             }
 
             return sb.ToString();
         }
 
-        private string GetMethodName(SqlStoredProcedure sqlStoredProcedure)
-        {
-            return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
-                                                         .Replace($"{sqlStoredProcedure.TableName}_", "")
-                                                         .Replace("GetBy", $"Get{sqlStoredProcedure.TableName}By")
-                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}")
-                                                         .Replace("DelHrd", $"Del{sqlStoredProcedure.TableName}Hrd")
-                                                         .Replace("DelSft", $"Del{sqlStoredProcedure.TableName}Sft");
-        }
-
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)
         {
-            return $"I{sqlStoredProcedure.TableName}Service";
+            return $"I{sqlStoredProcedure.TableName.ToPascalCase()}Service";
         }
 
         private string GetClassName(SqlStoredProcedure sqlStoredProcedure)
         {
-            return $"{sqlStoredProcedure.TableName}Service";
+            return $"{sqlStoredProcedure.TableName.ToPascalCase()}Service";
         }
 
         private string GetModelNamespace(SqlStoredProcedure sqlStoredProcedure)

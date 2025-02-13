@@ -4,6 +4,18 @@ namespace Apstory.Scaffold.Domain.Util
 {
     public static class SqlScaffoldUtils
     {
+        public static string GetMethodName(this SqlStoredProcedure sqlStoredProcedure)
+        {
+            return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
+                                                         .Replace($"{sqlStoredProcedure.TableName}_", "", StringComparison.OrdinalIgnoreCase)
+                                                         .Replace("GetBy", $"Get{sqlStoredProcedure.TableName.ToPascalCase()}By")
+                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName.ToPascalCase()}")
+                                                         .Replace("DelHrd", $"Del{sqlStoredProcedure.TableName.ToPascalCase()}Hrd")
+                                                         .Replace("DelSft", $"Del{sqlStoredProcedure.TableName.ToPascalCase()}Sft")
+                                                         .ToPascalCase();
+
+        }
+
         public static string ToSchemaString(this string declaration, string schema)
         {
             if (schema.Equals("dbo", StringComparison.OrdinalIgnoreCase))

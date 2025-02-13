@@ -301,7 +301,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine(")");
                 sb.AppendLine("{");
 
-                sb.Append($"    var ret{sqlStoredProcedure.TableName} = await _repo.{GetMethodName(sqlStoredProcedure)}(");
+                sb.Append($"    var ret{sqlStoredProcedure.TableName} = await _repo.{sqlStoredProcedure.GetMethodName()}(");
                 foreach (var param in sqlStoredProcedure.Parameters)
                     if (!param.ColumnName.Equals("RetMsg", StringComparison.OrdinalIgnoreCase))
                         sb.Append($"{param.ColumnName.ToCamelCase()},");
@@ -330,25 +330,17 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GetMethodNameWithFK(SqlStoredProcedure sqlStoredProcedure)
         {
-            return GetMethodName(sqlStoredProcedure) + "IncludeForeignKeys";
-        }
-
-        private string GetMethodName(SqlStoredProcedure sqlStoredProcedure)
-        {
-            return sqlStoredProcedure.StoredProcedureName.Replace("zgen_", "")
-                                                         .Replace($"{sqlStoredProcedure.TableName}_", "")
-                                                         .Replace("GetBy", $"Get{sqlStoredProcedure.TableName}By")
-                                                         .Replace("InsUpd", $"InsUpd{sqlStoredProcedure.TableName}");
+            return sqlStoredProcedure.GetMethodName() + "IncludeForeignKeys";
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)
         {
-            return $"I{sqlStoredProcedure.TableName}Service";
+            return $"I{sqlStoredProcedure.TableName.ToPascalCase()}Service";
         }
 
         private string GetClassName(SqlStoredProcedure sqlStoredProcedure)
         {
-            return $"{sqlStoredProcedure.TableName}Service";
+            return $"{sqlStoredProcedure.TableName.ToPascalCase()}Service";
         }
 
         private string GetModelNamespace(string schema)
