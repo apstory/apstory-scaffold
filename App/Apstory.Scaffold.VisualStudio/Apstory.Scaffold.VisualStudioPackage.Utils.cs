@@ -3,13 +3,10 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Threading;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Documents;
 
 namespace Apstory.Scaffold.VisualStudio
 {
@@ -111,6 +108,19 @@ namespace Apstory.Scaffold.VisualStudio
 
             // Write message to the pane
             outputPane.OutputString(message + "\n");
+        }
+
+        private string GetConfigPath()
+        {
+            string solutionPath = GetSolutionDirectory();
+            if (solutionPath is null)
+            {
+                Log("GetConfigPath Failed: No Solution found");
+                return string.Empty;
+            }
+
+            string configPath = Path.Combine(solutionPath, ".vs", "apstory-scaffold-settings.json");
+            return configPath;
         }
 
         private string GetSolutionDirectory()

@@ -1,10 +1,13 @@
-﻿using Apstory.Scaffold.VisualStudio.Window;
+﻿using Apstory.Scaffold.VisualStudio.Model;
+using Apstory.Scaffold.VisualStudio.Window;
+using EnvDTE;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using Microsoft.VisualStudio.TextTemplating.VSHost;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -14,6 +17,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Remoting.Contexts;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Controls;
 using Task = System.Threading.Tasks.Task;
 
@@ -47,11 +51,15 @@ namespace Apstory.Scaffold.VisualStudio
         /// </summary>
         public const string PackageGuidString = "033376d0-4630-4068-89d7-e6629cfe6645";
 
-        private const string guidApstoryScaffoldVisualStudioPackageCmdSet = "bf130a03-5202-4448-8173-02f6b1d00bd2"; // Match `guidApstoryScaffoldVisualStudioPackageCmdSet`
-        private const int ToolbarApstoryScaffoldCommandId = 0x1051;
-        private const int ContextMenuScaffoldCommandId = 0x1052;
-
+        private const string guidApstoryScaffoldVisualStudioPackageCmdSet = "cf130a03-5202-4448-8173-02f6b1d00bd2"; // Match `guidApstoryScaffoldVisualStudioPackageCmdSet`
+        private const int ToolbarApstoryScaffoldCommandId = 0x1051; //Toolbar Run Scaffold
+        private const int ToolbarApstoryConfigCommandId = 0x1053;   //Toolbar Settings
+        private const int ContextMenuScaffoldCommandId = 0x1052;    //Context Run Scaffold
+        
         private MenuCommand btnRunCodeScaffold;
+        private MenuCommand btnOpenConfig;
+
+        private ScaffoldConfig config;
         #region Package Members
 
         /// <summary>
@@ -69,22 +77,47 @@ namespace Apstory.Scaffold.VisualStudio
             if (commandService != null)
             {
                 //Add toolbar button
-                var cmdId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryScaffoldCommandId);
-                btnRunCodeScaffold = new MenuCommand(ExecuteToolbarCodeScaffold, cmdId);
+                var cmdToolbarRunScaffoldId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryScaffoldCommandId);
+                btnRunCodeScaffold = new MenuCommand(ExecuteToolbarCodeScaffoldAsync, cmdToolbarRunScaffoldId);
                 commandService.AddCommand(btnRunCodeScaffold);
+
+                //Add toolbar button
+                var cmdToolbarOpenSettingsId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryConfigCommandId);
+                btnOpenConfig = new MenuCommand(ExecuteToolbarOpenConfigAsync, cmdToolbarOpenSettingsId);
+                commandService.AddCommand(btnOpenConfig);
 
                 //Add right-click context menu button
                 var cmdContextCodeScaffold = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ContextMenuScaffoldCommandId);
-                var menuCommand = new OleMenuCommand(ExecuteContextMenuCodeScaffold, cmdContextCodeScaffold);
+                var menuCommand = new OleMenuCommand(ExecuteContextMenuCodeScaffoldAsync, cmdContextCodeScaffold);
                 commandService?.AddCommand(menuCommand);
             }
 
 
             this.scaffoldAppLocation = ExecuteCmd("where.exe", scaffoldApp).Trim('\r', '\n', ' ');
             Log($"Found Scaffold App at {this.scaffoldAppLocation}");
+
+            await LoadConfig();
         }
 
+        private async Task LoadConfig()
+        {
+            var configPath = GetConfigPath();
+            if (string.IsNullOrEmpty(configPath))
+                return;
 
+            if (File.Exists(configPath))
+            {
+                var configTxt = File.ReadAllText(configPath);
+                this.config = JsonConvert.DeserializeObject<ScaffoldConfig>(configTxt);
+                Log($"Loaded Scaffold Config");
+            }
+            else
+            {
+                config = new ScaffoldConfig();
+                File.WriteAllText(configPath, JsonConvert.SerializeObject(config));
+                Log($"Created Empty Scaffold Config");
+            }
+        }
         #endregion
     }
 }

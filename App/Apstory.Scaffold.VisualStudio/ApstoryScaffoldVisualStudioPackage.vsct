@@ -40,7 +40,6 @@
           <CommandName>Apstory Scaffold</CommandName>
         </Strings>
       </Menu>
-
     </Menus>
 
     <Groups>
@@ -62,7 +61,15 @@
         </Strings>
       </Button>
 
-      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ContextMenuScaffoldCommandId" priority="0x0101" type="Button">
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryConfigCommandId" priority="0x0101" type="Button">
+        <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
+        <Icon guid="guidImgConfig" id="bmpConfig" />
+        <Strings>
+          <ButtonText>Open Scaffold Config</ButtonText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ContextMenuScaffoldCommandId" priority="0x0200" type="Button">
         <Parent guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="MyMenuGroup" />
         <Icon guid="guidImages" id="bmpRun" />
         <Strings>
@@ -82,6 +89,7 @@
             inside a button definition. An important aspect of this declaration is that the element id
             must be the actual index (1-based) of the bitmap inside the bitmap strip. -->
       <Bitmap guid="guidImages" href="Resources\scaffold_run.png" usedList="bmpRun"/>
+      <Bitmap guid="guidImgConfig" href="Resources\scaffold_config.png" usedList="bmpConfig"/>
     </Bitmaps>
   </Commands>
 
@@ -93,11 +101,12 @@
     </GuidSymbol>
 
     <!-- This is the guid used to group the menu commands together -->
-    <GuidSymbol name="guidToolbarApstoryScaffoldCommandPackageCmdSet" value="{bf130a03-5202-4448-8173-02f6b1d00bd2}">
+    <GuidSymbol name="guidToolbarApstoryScaffoldCommandPackageCmdSet" value="{cf130a03-5202-4448-8173-02f6b1d00bd2}">
 
       <IDSymbol name="Toolbar" value="0x1000" />
       <IDSymbol name="ToolbarGroup" value="0x1050" />
       <IDSymbol name="ToolbarApstoryScaffoldCommandId" value="0x1051" />
+      <IDSymbol name="ToolbarApstoryConfigCommandId" value="0x1053" />
 
       <IDSymbol name="ContextMenuScaffoldCommandId" value="0x1052" />
 
@@ -107,6 +116,10 @@
 
     <GuidSymbol name="guidImages" value="{178b5164-e89b-4490-aff5-7f1fd4b28fd6}" >
       <IDSymbol name="bmpRun" value="1" />
+    </GuidSymbol>
+
+    <GuidSymbol name="guidImgConfig" value="{188b5164-e89b-4490-aff5-7f1fd4b28fd6}" >
+      <IDSymbol name="bmpConfig" value="1" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

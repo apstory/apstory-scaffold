@@ -22,7 +22,7 @@ namespace Apstory.Scaffold.VisualStudio.Window
         /// <summary>
         /// Command menu group (command set GUID).
         /// </summary>
-        public static readonly Guid CommandSet = new Guid("bf130a03-5202-4448-8173-02f6b1d00bd2");
+        public static readonly Guid CommandSet = new Guid("df130a03-5202-4448-8173-02f6b1d00bd2");
 
         /// <summary>
         /// VS Package that provides this command, not null.

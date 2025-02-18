@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.Shell;
+﻿using EnvDTE;
+using Microsoft.VisualStudio.Shell;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,7 +12,26 @@ namespace Apstory.Scaffold.VisualStudio
     {
         private bool isScaffolding = false;
 
-        private async void ExecuteToolbarCodeScaffold(object sender, EventArgs e)
+        private async void ExecuteToolbarOpenConfigAsync(object sender, EventArgs e)
+        {
+            try
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                var configPath = GetConfigPath();
+                if (string.IsNullOrEmpty(configPath))
+                    return;
+
+                DTE dte = await ServiceProvider.GetGlobalServiceAsync(typeof(DTE)) as DTE;
+                dte.ItemOperations.OpenFile(configPath, EnvDTE.Constants.vsViewKindTextView);
+            }
+            catch (Exception ex)
+            {
+                Log($"Error in ExecuteToolbarOpenConfigAsync: {ex.Message}");
+            }
+        }
+
+        private async void ExecuteToolbarCodeScaffoldAsync(object sender, EventArgs e)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (isScaffolding)
@@ -51,7 +71,7 @@ namespace Apstory.Scaffold.VisualStudio
             catch (Exception ex)
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                Log($"Exception: {ex.Message}");
+                Log($"Error in ExecuteToolbarCodeScaffoldAsync: {ex.Message}");
             }
             finally
             {
@@ -60,7 +80,7 @@ namespace Apstory.Scaffold.VisualStudio
             }
         }
 
-        private async void ExecuteContextMenuCodeScaffold(object sender, EventArgs e)
+        private async void ExecuteContextMenuCodeScaffoldAsync(object sender, EventArgs e)
         {
             var solutionDirectory = GetSolutionDirectory();
             var selectedPaths = GetSelectedItemPaths();
@@ -109,7 +129,7 @@ namespace Apstory.Scaffold.VisualStudio
             catch (Exception ex)
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                Log($"Exception: {ex.Message}");
+                Log($"Error in ExecuteContextMenuCodeScaffoldAsync: {ex.Message}");
             }
             finally
             {
