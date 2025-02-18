@@ -31,6 +31,32 @@ namespace Apstory.Scaffold.VisualStudio
             }
         }
 
+        private async void ExecuteToolbarSqlUpdateAsync(object sender, EventArgs e)
+        {
+            await this.LoadConfigAsync();
+            if (string.IsNullOrEmpty(this.config.SqlDestination))
+            {
+                Log("SQL Destination Required");
+                ExecuteToolbarOpenConfigAsync(sender, e);
+                return;
+            }
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            var solutionDirectory = GetSolutionDirectory();
+
+            Log($"Executing Code Scaffold in {solutionDirectory} using {this.config.SqlDestination}");
+
+            // Run the process on a background thread
+            var logs = await Task.Run(() => ExecuteSqlUpdate(string.Empty, solutionDirectory));
+
+            // Return to the UI thread for logging
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            foreach (var log in logs)
+                Log(log);
+
+            Log($"SQL Update Complete.");
+        }
+
         private async void ExecuteToolbarCodeScaffoldAsync(object sender, EventArgs e)
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -82,7 +108,7 @@ namespace Apstory.Scaffold.VisualStudio
 
         private async void ExecuteContextMenuSqlUpdateAsync(object sender, EventArgs e)
         {
-            await this.LoadConfig();
+            await this.LoadConfigAsync();
             if (string.IsNullOrEmpty(this.config.SqlDestination))
             {
                 Log("SQL Destination Required");
@@ -114,14 +140,14 @@ namespace Apstory.Scaffold.VisualStudio
             Log($"Executing Code Scaffold for {scaffoldArgs} in {solutionDirectory} using {this.config.SqlDestination}");
 
             // Run the process on a background thread
-            var logs = await Task.Run(() => ExecuteSqlUpdate(this.config.SqlDestination, scaffoldArgs, solutionDirectory));
+            var logs = await Task.Run(() => ExecuteSqlUpdate(scaffoldArgs, solutionDirectory));
 
             // Return to the UI thread for logging
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             foreach (var log in logs)
                 Log(log);
 
-            Log($"Scaffolding Complete.");
+            Log($"SQL Update Complete.");
         }
 
         private async void ExecuteContextMenuCodeScaffoldAsync(object sender, EventArgs e)

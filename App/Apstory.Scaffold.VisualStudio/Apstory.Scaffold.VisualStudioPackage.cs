@@ -53,12 +53,14 @@ namespace Apstory.Scaffold.VisualStudio
 
         private const string guidApstoryScaffoldVisualStudioPackageCmdSet = "cf130a03-5202-4448-8173-02f6b1d00bd2"; // Match `guidApstoryScaffoldVisualStudioPackageCmdSet`
         private const int ToolbarApstoryScaffoldCommandId = 0x1051; //Toolbar Run Scaffold
-        private const int ToolbarApstoryConfigCommandId = 0x1053;   //Toolbar Settings
         private const int ContextMenuScaffoldCommandId = 0x1052;    //Context Run Scaffold
+        private const int ToolbarApstoryConfigCommandId = 0x1053;   //Toolbar Settings
         private const int ContextMenuSqlUpdateCommandId = 0x1054;   //Context Update SQL Database
+        private const int ToolbarApstorySqlUpdateCommandId = 0x1055;   //Toolbar Settings
 
         private MenuCommand btnRunCodeScaffold;
         private MenuCommand btnOpenConfig;
+        private MenuCommand btnSqlUpdate;
 
         private ScaffoldConfig config;
         #region Package Members
@@ -82,6 +84,10 @@ namespace Apstory.Scaffold.VisualStudio
                 btnRunCodeScaffold = new MenuCommand(ExecuteToolbarCodeScaffoldAsync, cmdToolbarRunScaffoldId);
                 commandService.AddCommand(btnRunCodeScaffold);
 
+                var cmdToolbarSqlUpdateId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstorySqlUpdateCommandId);
+                btnSqlUpdate = new MenuCommand(ExecuteToolbarSqlUpdateAsync, cmdToolbarSqlUpdateId);
+                commandService.AddCommand(btnSqlUpdate);
+
                 var cmdToolbarOpenSettingsId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryConfigCommandId);
                 btnOpenConfig = new MenuCommand(ExecuteToolbarOpenConfigAsync, cmdToolbarOpenSettingsId);
                 commandService.AddCommand(btnOpenConfig);
@@ -100,28 +106,10 @@ namespace Apstory.Scaffold.VisualStudio
             this.scaffoldAppLocation = ExecuteCmd("where.exe", scaffoldApp).Trim('\r', '\n', ' ');
             Log($"Found Scaffold App at {this.scaffoldAppLocation}");
 
-            await LoadConfig();
+            await LoadConfigAsync();
         }
 
-        private async Task LoadConfig()
-        {
-            var configPath = GetConfigPath();
-            if (string.IsNullOrEmpty(configPath))
-                return;
-
-            if (File.Exists(configPath))
-            {
-                var configTxt = File.ReadAllText(configPath);
-                this.config = JsonConvert.DeserializeObject<ScaffoldConfig>(configTxt);
-                Log($"Loaded Scaffold Config");
-            }
-            else
-            {
-                config = new ScaffoldConfig();
-                File.WriteAllText(configPath, JsonConvert.SerializeObject(config));
-                Log($"Created Empty Scaffold Config");
-            }
-        }
+        
         #endregion
     }
 }

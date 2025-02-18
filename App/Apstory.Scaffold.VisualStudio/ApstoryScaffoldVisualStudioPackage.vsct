@@ -53,6 +53,7 @@
     </Groups>
 
     <Buttons>
+      <!-- Toolbar Buttons -->
       <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryScaffoldCommandId" priority="0x0100" type="Button">
         <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
         <Icon guid="guidImages" id="bmpRun" />
@@ -61,7 +62,15 @@
         </Strings>
       </Button>
 
-      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryConfigCommandId" priority="0x0101" type="Button">
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstorySqlUpdateCommandId" priority="0x0101" type="Button">
+        <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
+        <Icon guid="guidImgSql" id="bmpSql" />
+        <Strings>
+          <ButtonText>Push Git-Pending SQL Changes</ButtonText>
+        </Strings>
+      </Button>
+      
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryConfigCommandId" priority="0x0102" type="Button">
         <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
         <Icon guid="guidImgConfig" id="bmpConfig" />
         <Strings>
@@ -69,6 +78,7 @@
         </Strings>
       </Button>
 
+      <!-- Context Menu Buttons -->
       <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ContextMenuScaffoldCommandId" priority="0x0200" type="Button">
         <Parent guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="MyMenuGroup" />
         <Icon guid="guidImages" id="bmpRun" />
@@ -81,7 +91,7 @@
         <Parent guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="MyMenuGroup" />
         <Icon guid="guidImgSql" id="bmpSql" />
         <Strings>
-          <ButtonText>Push SQL Changes</ButtonText>
+          <ButtonText>Push to SQL</ButtonText>
         </Strings>
       </Button>
     </Buttons>
@@ -111,11 +121,11 @@
 
     <!-- This is the guid used to group the menu commands together -->
     <GuidSymbol name="guidToolbarApstoryScaffoldCommandPackageCmdSet" value="{cf130a03-5202-4448-8173-02f6b1d00bd2}">
-
       <IDSymbol name="Toolbar" value="0x1000" />
       <IDSymbol name="ToolbarGroup" value="0x1050" />
       <IDSymbol name="ToolbarApstoryScaffoldCommandId" value="0x1051" />
       <IDSymbol name="ToolbarApstoryConfigCommandId" value="0x1053" />
+      <IDSymbol name="ToolbarApstorySqlUpdateCommandId" value="0x1055" />
 
       <IDSymbol name="ContextMenuScaffoldCommandId" value="0x1052" />
       <IDSymbol name="ContextMenuSqlUpdateCommandId" value="0x1054" />

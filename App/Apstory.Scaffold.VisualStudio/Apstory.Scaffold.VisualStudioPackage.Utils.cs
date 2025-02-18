@@ -1,11 +1,14 @@
-﻿using Microsoft.VisualStudio;
+﻿using Apstory.Scaffold.VisualStudio.Model;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Threading;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Apstory.Scaffold.VisualStudio
@@ -53,6 +56,10 @@ namespace Apstory.Scaffold.VisualStudio
         private async Task<List<string>> ExecuteScaffolding(string tableOrStoredProcName, string workingDirectory)
         {
             string arguments = $"-regen {tableOrStoredProcName}";
+            if (!string.IsNullOrWhiteSpace(this.config.SqlProject))
+                arguments = $"-sqlproject \"{this.config.SqlProject}\" {arguments}";
+            if (!string.IsNullOrWhiteSpace(this.config.Namespace))
+                arguments = $"-namespace {this.config.Namespace} {arguments}";
 
             ProcessStartInfo psi = new ProcessStartInfo
             {
@@ -94,9 +101,13 @@ namespace Apstory.Scaffold.VisualStudio
         /// </summary>
         /// <param name="tableOrStoredProcName"> dbo.tableName // dbo.zgen_table_command </param>
         /// <param name="workingDirectory">Directory to execute the command in</param>
-        private async Task<List<string>> ExecuteSqlUpdate(string connectionString, string tableOrStoredProcName, string workingDirectory)
+        private async Task<List<string>> ExecuteSqlUpdate(string tableOrStoredProcName, string workingDirectory)
         {
-            string arguments = $"-sqldestination \"{connectionString}\" -sqlpush {tableOrStoredProcName}";
+            string arguments = $"-sqldestination \"{this.config.SqlDestination}\" -sqlpush {tableOrStoredProcName}";
+            if (!string.IsNullOrWhiteSpace(this.config.SqlProject))
+                arguments = $"-sqlproject \"{this.config.SqlProject}\" {arguments}";
+            if (!string.IsNullOrWhiteSpace(this.config.Namespace))
+                arguments = $"-namespace {this.config.Namespace} {arguments}";
 
             ProcessStartInfo psi = new ProcessStartInfo
             {
@@ -261,5 +272,32 @@ namespace Apstory.Scaffold.VisualStudio
             return selectedPaths;
         }
 
+        private async Task LoadConfigAsync()
+        {
+            try
+            {
+                var configPath = GetConfigPath();
+                if (string.IsNullOrEmpty(configPath))
+                    return;
+
+                if (File.Exists(configPath))
+                {
+                    var configTxt = File.ReadAllText(configPath);
+                    this.config = JsonConvert.DeserializeObject<ScaffoldConfig>(configTxt);
+                    Log($"Loaded Scaffold Config");
+                }
+                else
+                {
+                    config = new ScaffoldConfig();
+                    File.WriteAllText(configPath, JsonConvert.SerializeObject(config, Formatting.Indented));
+                    Log($"Created Empty Scaffold Config");
+                }
+            }
+            catch (Exception ex)
+            {
+                await this.JoinableTaskFactory.SwitchToMainThreadAsync();
+                Log($"Exception Loading Config: {ex.Message}");
+            }
+        }
     }
 }
