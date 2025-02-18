@@ -19,6 +19,8 @@ class Program
                 { "-namespace", "namespace" },
                 { "-regen", "regen" },
                 { "-clean", "clean" },
+                { "-sqlpush", "sqlpush" },
+                { "-sqldestination", "sqldestination" },
                 { "-help", "help" },
             })
             .Build();
@@ -26,10 +28,12 @@ class Program
         if (args.Contains("-help"))
         {
             Console.WriteLine("Available Command-Line Switches:");
-            Console.WriteLine("-sqlproject <path>   : Overrides the SQL project path instead of letting the application search for it.");
-            Console.WriteLine("-namespace <name>    : Overrides the namespace for scaffolded code instead of fetching it from the sqlproj.");
-            Console.WriteLine("-regen <params>      : Executes immediate regeneration of files. Will regenerate all found schemas when no additional information supplied. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to regenerate.");
-            Console.WriteLine("-clean               : Deletes existing generated files.");
+            Console.WriteLine("-sqlproject <path>       : Overrides the SQL project path instead of letting the application search for it.");
+            Console.WriteLine("-namespace <name>        : Overrides the namespace for scaffolded code instead of fetching it from the sqlproj.");
+            Console.WriteLine("-regen <params>          : Executes immediate regeneration of files. Will regenerate all found schemas when no additional information supplied. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to regenerate.");
+            Console.WriteLine("-sqlpush <params>        : Pushes changes to database. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to push. Requires -sqldestination switch as well");
+            Console.WriteLine("-sqldestination <params> : Pushes changes to database. This is the connection string of the database.");
+            Console.WriteLine("-clean                   : Deletes existing generated files.");
 
             return;
         }
@@ -38,6 +42,7 @@ class Program
         string overrideNamespace = configuration["namespace"];
         var regenerate = args.Contains("-regen");
         var clean = args.Contains("-clean");
+        var sqlpush = args.Contains("-sqlpush");
 
         if (clean & regenerate)
         {
@@ -85,6 +90,8 @@ class Program
                     services.AddHostedService<SqlScaffoldCleanupWorker>();
                 else if (regenerate)
                     services.AddHostedService<SqlScaffoldRegenerationWorker>();
+                else if (sqlpush)
+                    services.AddHostedService<SqlUpdateWorker>();
                 else
                     services.AddHostedService<SqlScaffoldWatcherWorker>();
             })

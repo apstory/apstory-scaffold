@@ -65,7 +65,6 @@ namespace Apstory.Scaffold.App.Worker
         {
             var regenArgs = _configuration["regen"];
             var schema = "dbo";
-            var entityName = string.Empty;
 
             if (regenArgs is null)
             {
@@ -93,6 +92,7 @@ namespace Apstory.Scaffold.App.Worker
                 var entities = regenArgs.Split(";");
                 foreach (var regenEntry in entities)
                 {
+                    var entityName = string.Empty;
                     var argSplit = regenEntry.Split(".");
                     if (argSplit.Length > 1)
                     {
