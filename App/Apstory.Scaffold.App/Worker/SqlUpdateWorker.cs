@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Dapper;
 using System.Diagnostics;
+using Apstory.Scaffold.Domain.Parser;
 
 namespace Apstory.Scaffold.App.Worker
 {
@@ -107,10 +108,37 @@ namespace Apstory.Scaffold.App.Worker
 
         private async Task PushTableChanges(string connectionString, string tablePath)
         {
-            Logger.LogWarn("Pushing SQL Table changes are not implemented");
+            //In SQL Server, you cannot directly specify the column position when adding a column to an existing table 
+            //The workaround is to:
+            //1. Create a new table
+            //2. Copy data across to new table
+            //3. Rename old table to _backup
+            //4. Rename new table to old table
+            //5. Drop old table
+            //6. Be careful of foreign keys, they sneaky...
 
-            //TODO: If new table, push that
-            //TODO: Figure out table differences via connection string and then push that
+            try
+            {
+                //TLDR: this is too much work, we will simply try create the table if it does not exist:
+                var createTableScript = FileUtils.SafeReadAllText(tablePath);
+                var tableInfo = SqlTableParser.Parse(createTableScript);
+
+                bool tableExists = await ExecuteCheckIfTableExists(connectionString, tableInfo.Schema, tableInfo.TableName);
+
+                if (!tableExists)
+                {
+                    Logger.LogInfo($"Creating Table {tableInfo.Schema}.{tableInfo.TableName}");
+                    await ExecuteSql(connectionString, createTableScript);
+                }
+                else
+                {
+                    Logger.LogWarn($"Table {tableInfo.Schema}.{tableInfo.TableName} already exists, skipping.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Error pushing table: {ex.Message}");
+            }
         }
 
         private async Task PushStoredProcedureChanges(string connectionString, string storedProcedurePath)
@@ -136,6 +164,19 @@ namespace Apstory.Scaffold.App.Worker
             catch (Exception ex)
             {
                 Logger.LogError($"Error pushing sql: {ex.Message}\r\n{sql}");
+            }
+        }
+
+        private async Task<bool> ExecuteCheckIfTableExists(string connectionString, string schemaName, string tableName)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                string query = @"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = @SchemaName AND TABLE_NAME = @TableName";
+                int tableCount = connection.ExecuteScalar<int>(query, new { SchemaName = schemaName, TableName = tableName });
+
+                return tableCount > 0;  // If count is greater than 0, table exists
             }
         }
 
