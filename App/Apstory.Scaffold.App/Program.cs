@@ -13,8 +13,9 @@ class Program
     static void Main(string[] args)
     {
         // Build configuration from command-line arguments
+        var parsedArgs = ParseArgs(args);
         var configuration = new ConfigurationBuilder()
-            .AddCommandLine(args, new Dictionary<string, string> {
+            .AddCommandLine(parsedArgs, new Dictionary<string, string> {
                 { "-sqlproject", "sqlproject" },
                 { "-namespace", "namespace" },
                 { "-regen", "regen" },
@@ -147,5 +148,46 @@ class Program
         var csharpConfig = new CSharpConfig(rootDirectory, rootNamespace, sqlProjectFile);
 
         return csharpConfig;
+    }
+
+    private static string[] ParseArgs(string[] args)
+    {
+        var parsedArgs = new List<string>();
+        string lastKey = null;
+
+        foreach (var arg in args)
+        {
+            if (arg.StartsWith("-")) // It's a key
+            {
+                if (lastKey != null) // Previous key had no value, treat it as a flag
+                {
+                    parsedArgs.Add(lastKey);
+                    parsedArgs.Add("");
+                }
+                lastKey = arg;
+            }
+            else // It's a value
+            {
+                if (lastKey != null)
+                {
+                    parsedArgs.Add(lastKey);
+                    parsedArgs.Add(arg);
+                    lastKey = null;
+                }
+                else
+                {
+                    // Unexpected value without a key (ignore or handle error)
+                }
+            }
+        }
+
+        // Handle trailing flag
+        if (lastKey != null)
+        {
+            parsedArgs.Add(lastKey);
+            parsedArgs.Add("");
+        }
+
+        return parsedArgs.ToArray();
     }
 }

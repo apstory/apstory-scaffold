@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Dapper;
+using System.Diagnostics;
 
 namespace Apstory.Scaffold.App.Worker
 {
@@ -32,12 +33,34 @@ namespace Apstory.Scaffold.App.Worker
             {
                 Logger.LogError($"-sqlDestination requires a database connection string");
                 _lifetime.StopApplication();
+                return;
             }
 
             if (args is null)
             {
-                Logger.LogError($"-sqlPush requires sql entities to push");
-                _lifetime.StopApplication();
+                Logger.LogInfo($"No -sqlPush parameter, checking git status");
+                var gitLogs = await ExecuteGitStatus();
+
+                var modifiedEntries = gitLogs.Where(s => s.StartsWith("\tmodified:")).Select(s => s.Replace("\tmodified:", string.Empty).Trim());
+                var validSqlEntries = modifiedEntries.Where(s => s.EndsWith(".sql", StringComparison.OrdinalIgnoreCase)).ToList();
+
+                if (!validSqlEntries.Any())
+                {
+                    Logger.LogError($"No modified sql files found");
+                    _lifetime.StopApplication();
+                    return;
+                }
+
+                Logger.LogInfo($"Found {validSqlEntries.Count()} modified sql files");
+                List<string> entityArgs = new List<string>();
+                foreach (var sqlEntry in validSqlEntries)
+                {
+                    var schema = sqlEntry.GetSchemaFromPath();
+                    var fileName = Path.GetFileName(sqlEntry).Replace(".sql", string.Empty);
+                    entityArgs.Add($"{schema}.{fileName}");
+                }
+
+                args = string.Join(";", entityArgs);
             }
 
             var entities = args.Split(";");
@@ -114,6 +137,45 @@ namespace Apstory.Scaffold.App.Worker
             {
                 Logger.LogError($"Error pushing sql: {ex.Message}\r\n{sql}");
             }
+        }
+
+
+        private async Task<List<string>> ExecuteGitStatus()
+        {
+            string arguments = $"status";
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = "git",
+                Arguments = arguments,
+                WorkingDirectory = _csharpConfig.Directories.SolutionDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            List<string> logs = new List<string>();
+            using (Process process = new Process { StartInfo = psi })
+            {
+                process.OutputDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        logs.Add(e.Data);
+                };
+
+                process.ErrorDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        logs.Add($"Error: {e.Data}");
+                };
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+                await process.WaitForExitAsync();
+            }
+
+            return logs;
         }
     }
 }

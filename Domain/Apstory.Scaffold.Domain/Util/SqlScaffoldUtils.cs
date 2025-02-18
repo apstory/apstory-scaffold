@@ -68,5 +68,21 @@ namespace Apstory.Scaffold.Domain.Util
 
             return csharpType;
         }
+
+        public static string GetSchemaFromPath(this string path)
+        {
+            string directory = Path.GetDirectoryName(path);
+
+            if (directory == null)
+                throw new ArgumentException("Invalid path provided.");
+
+            // Get the parent directory (schema folder)
+            string schema = Directory.GetParent(directory)?.Name;
+
+            if (string.IsNullOrEmpty(schema))
+                throw new InvalidOperationException("Schema folder not found in the provided path.");
+
+            return schema;
+        }
     }
 }

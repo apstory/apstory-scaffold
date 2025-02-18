@@ -218,7 +218,7 @@ namespace Apstory.Scaffold.App.Worker
                     var sqlStoredProcedureInfo = new SqlStoredProcedure();
                     sqlStoredProcedureInfo.TableName = fileParts[0].ToPascalCase();
                     sqlStoredProcedureInfo.StoredProcedureName = fileName.Replace(".sql", string.Empty);
-                    sqlStoredProcedureInfo.Schema = GetSchemaFromPath(filePath);
+                    sqlStoredProcedureInfo.Schema = filePath.GetSchemaFromPath();
 
                     var repoResult = await _sqlDalRepositoryScaffold.DeleteCode(sqlStoredProcedureInfo);
                     await _sqlDalRepositoryInterfaceScaffold.DeleteCode(sqlStoredProcedureInfo);
@@ -270,7 +270,7 @@ namespace Apstory.Scaffold.App.Worker
                     var tableInfo = new SqlTable();
 
                     tableInfo.TableName = fileName.Replace(".sql", string.Empty).ToPascalCase();
-                    tableInfo.Schema = GetSchemaFromPath(e.FullPath);
+                    tableInfo.Schema = e.FullPath.GetSchemaFromPath();
 
                     await _sqlModelScaffold.DeleteCode(tableInfo);
                     await _sqlScriptFileScaffold.DeleteCode(tableInfo);
@@ -284,20 +284,6 @@ namespace Apstory.Scaffold.App.Worker
             Logger.LogInfo($"[DONE Table] {e.FullPath}");
         }
 
-        private string GetSchemaFromPath(string path)
-        {
-            string directory = Path.GetDirectoryName(path);
-
-            if (directory == null)
-                throw new ArgumentException("Invalid path provided.");
-
-            // Get the parent directory (schema folder)
-            string schema = Directory.GetParent(directory)?.Name;
-
-            if (string.IsNullOrEmpty(schema))
-                throw new InvalidOperationException("Schema folder not found in the provided path.");
-
-            return schema;
-        }
+        
     }
 }
