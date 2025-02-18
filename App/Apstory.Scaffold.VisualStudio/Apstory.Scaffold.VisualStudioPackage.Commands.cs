@@ -80,6 +80,50 @@ namespace Apstory.Scaffold.VisualStudio
             }
         }
 
+        private async void ExecuteContextMenuSqlUpdateAsync(object sender, EventArgs e)
+        {
+            await this.LoadConfig();
+            if (string.IsNullOrEmpty(this.config.SqlDestination))
+            {
+                Log("SQL Destination Required");
+                ExecuteToolbarOpenConfigAsync(sender, e);
+                return;
+            }
+
+            var solutionDirectory = GetSolutionDirectory();
+            var selectedPaths = GetSelectedItemPaths();
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+            List<string> toUpdate = new List<string>();
+            foreach (var path in selectedPaths)
+            {
+                var fileName = Path.GetFileName(path);
+                if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log($"Scaffolding only supports .sql files");
+                    return;
+                }
+
+                var schema = GetSchemaFromPath(path);
+                var tableOrProc = fileName.Replace(".sql", string.Empty);
+                toUpdate.Add($"{schema}.{tableOrProc}");
+            }
+
+            var scaffoldArgs = string.Join(";", toUpdate.ToArray());
+            Log($"Executing Code Scaffold for {scaffoldArgs} in {solutionDirectory} using {this.config.SqlDestination}");
+
+            // Run the process on a background thread
+            var logs = await Task.Run(() => ExecuteSqlUpdate(this.config.SqlDestination, scaffoldArgs, solutionDirectory));
+
+            // Return to the UI thread for logging
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            foreach (var log in logs)
+                Log(log);
+
+            Log($"Scaffolding Complete.");
+        }
+
         private async void ExecuteContextMenuCodeScaffoldAsync(object sender, EventArgs e)
         {
             var solutionDirectory = GetSolutionDirectory();

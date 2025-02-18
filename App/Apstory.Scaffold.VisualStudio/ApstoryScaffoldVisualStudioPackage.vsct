@@ -65,7 +65,7 @@
         <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
         <Icon guid="guidImgConfig" id="bmpConfig" />
         <Strings>
-          <ButtonText>Open Scaffold Config</ButtonText>
+          <ButtonText>Configure</ButtonText>
         </Strings>
       </Button>
 
@@ -74,6 +74,14 @@
         <Icon guid="guidImages" id="bmpRun" />
         <Strings>
           <ButtonText>Run Code Scaffold</ButtonText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ContextMenuSqlUpdateCommandId" priority="0x0201" type="Button">
+        <Parent guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="MyMenuGroup" />
+        <Icon guid="guidImgSql" id="bmpSql" />
+        <Strings>
+          <ButtonText>Push SQL Changes</ButtonText>
         </Strings>
       </Button>
     </Buttons>
@@ -90,6 +98,7 @@
             must be the actual index (1-based) of the bitmap inside the bitmap strip. -->
       <Bitmap guid="guidImages" href="Resources\scaffold_run.png" usedList="bmpRun"/>
       <Bitmap guid="guidImgConfig" href="Resources\scaffold_config.png" usedList="bmpConfig"/>
+      <Bitmap guid="guidImgSql" href="Resources\scaffold_sql.png" usedList="bmpSql"/>
     </Bitmaps>
   </Commands>
 
@@ -109,6 +118,7 @@
       <IDSymbol name="ToolbarApstoryConfigCommandId" value="0x1053" />
 
       <IDSymbol name="ContextMenuScaffoldCommandId" value="0x1052" />
+      <IDSymbol name="ContextMenuSqlUpdateCommandId" value="0x1054" />
 
       <IDSymbol name="SubMenu" value="0x1001"/>
       <IDSymbol name="MyMenuGroup" value="0x1020" />
@@ -120,6 +130,10 @@
 
     <GuidSymbol name="guidImgConfig" value="{188b5164-e89b-4490-aff5-7f1fd4b28fd6}" >
       <IDSymbol name="bmpConfig" value="1" />
+    </GuidSymbol>
+
+    <GuidSymbol name="guidImgSql" value="{198b5164-e89b-4490-aff5-7f1fd4b28fd6}" >
+      <IDSymbol name="bmpSql" value="1" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

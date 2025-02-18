@@ -89,6 +89,50 @@ namespace Apstory.Scaffold.VisualStudio
             return logs;
         }
 
+        /// <summary>
+        /// Execute Apstory Sql Update Command
+        /// </summary>
+        /// <param name="tableOrStoredProcName"> dbo.tableName // dbo.zgen_table_command </param>
+        /// <param name="workingDirectory">Directory to execute the command in</param>
+        private async Task<List<string>> ExecuteSqlUpdate(string connectionString, string tableOrStoredProcName, string workingDirectory)
+        {
+            string arguments = $"-sqldestination \"{connectionString}\" -sqlpush {tableOrStoredProcName}";
+
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = scaffoldAppLocation,
+                Arguments = arguments,
+                WorkingDirectory = workingDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            List<string> logs = new List<string>();
+            using (Process process = new Process { StartInfo = psi })
+            {
+                process.OutputDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        logs.Add(e.Data);
+                };
+
+                process.ErrorDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        logs.Add($"Error: {e.Data}");
+                };
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+                await process.WaitForExitAsync();
+            }
+
+            return logs;
+        }
+
         private async void Log(string message)
         {
             // Get the Output window service

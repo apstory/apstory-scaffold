@@ -55,7 +55,8 @@ namespace Apstory.Scaffold.VisualStudio
         private const int ToolbarApstoryScaffoldCommandId = 0x1051; //Toolbar Run Scaffold
         private const int ToolbarApstoryConfigCommandId = 0x1053;   //Toolbar Settings
         private const int ContextMenuScaffoldCommandId = 0x1052;    //Context Run Scaffold
-        
+        private const int ContextMenuSqlUpdateCommandId = 0x1054;   //Context Update SQL Database
+
         private MenuCommand btnRunCodeScaffold;
         private MenuCommand btnOpenConfig;
 
@@ -76,20 +77,23 @@ namespace Apstory.Scaffold.VisualStudio
             OleMenuCommandService commandService = await GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
             if (commandService != null)
             {
-                //Add toolbar button
+                //Toolbar Buttons
                 var cmdToolbarRunScaffoldId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryScaffoldCommandId);
                 btnRunCodeScaffold = new MenuCommand(ExecuteToolbarCodeScaffoldAsync, cmdToolbarRunScaffoldId);
                 commandService.AddCommand(btnRunCodeScaffold);
 
-                //Add toolbar button
                 var cmdToolbarOpenSettingsId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryConfigCommandId);
                 btnOpenConfig = new MenuCommand(ExecuteToolbarOpenConfigAsync, cmdToolbarOpenSettingsId);
                 commandService.AddCommand(btnOpenConfig);
 
-                //Add right-click context menu button
+                //Right-click Context Menu Buttons
                 var cmdContextCodeScaffold = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ContextMenuScaffoldCommandId);
-                var menuCommand = new OleMenuCommand(ExecuteContextMenuCodeScaffoldAsync, cmdContextCodeScaffold);
-                commandService?.AddCommand(menuCommand);
+                var menuScaffoldCommand = new OleMenuCommand(ExecuteContextMenuCodeScaffoldAsync, cmdContextCodeScaffold);
+                commandService?.AddCommand(menuScaffoldCommand);
+
+                var cmdContextSqlUpdate = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ContextMenuSqlUpdateCommandId);
+                var menuSqlCommand = new OleMenuCommand(ExecuteContextMenuSqlUpdateAsync, cmdContextSqlUpdate);
+                commandService?.AddCommand(menuSqlCommand);
             }
 
 
