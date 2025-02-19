@@ -87,12 +87,12 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Resources\scaffold_sql.png" />
+    <Content Include="Resources\scaffold_run_strip.png" />
+    <Content Include="Resources\scaffold_sql_strip.png" />
     <VSCTCompile Include="ApstoryScaffoldVisualStudioPackage.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
     <Content Include="Resources\scaffold_config.png" />
-    <Content Include="Resources\scaffold_run.png" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
