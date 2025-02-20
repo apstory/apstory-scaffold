@@ -302,7 +302,7 @@ namespace Apstory.Scaffold.VisualStudio
 
         
 
-        private void ReportBuildErrorAsync(string message, string file = "", int line = 1, int column = 1)
+        private void LogError(string message, string file = "", int line = 1, int column = 1)
         {
             var task = new ErrorTask
             {

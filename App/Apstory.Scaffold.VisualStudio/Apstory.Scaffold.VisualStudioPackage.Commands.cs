@@ -39,7 +39,7 @@ namespace Apstory.Scaffold.VisualStudio
             await this.LoadConfigAsync();
             if (string.IsNullOrEmpty(this.config.SqlDestination))
             {
-                Log("SQL Destination Required");
+                LogError("SQL Destination Required", Hardcoded.ErrorLogSql);
                 ExecuteToolbarOpenConfigAsync(sender, e);
                 return;
             }
@@ -73,7 +73,7 @@ namespace Apstory.Scaffold.VisualStudio
                     ErrorListProvider.Tasks.Clear();
 
                     foreach (var errorMessage in errorsToLog)
-                        ReportBuildErrorAsync(errorMessage, Hardcoded.ErrorLogSql);
+                        LogError(errorMessage, Hardcoded.ErrorLogSql);
 
                     ErrorListProvider.Show(); // This ensures the Error List pops up
                 }
@@ -83,7 +83,7 @@ namespace Apstory.Scaffold.VisualStudio
             catch (Exception ex)
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                ReportBuildErrorAsync($"Exception in ExecuteToolbarSqlUpdateAsync: {ex.Message}");
+                LogError($"Exception in ExecuteToolbarSqlUpdateAsync: {ex.Message}");
                 ErrorListProvider.Show();
             }
             finally
@@ -134,7 +134,7 @@ namespace Apstory.Scaffold.VisualStudio
                     ErrorListProvider.Tasks.Clear();
 
                     foreach (var errorMessage in errorsToLog)
-                        ReportBuildErrorAsync(errorMessage, Hardcoded.ErrorLogScaffold);
+                        LogError(errorMessage, Hardcoded.ErrorLogScaffold);
 
                     ErrorListProvider.Show(); // This ensures the Error List pops up
                 }
@@ -144,7 +144,7 @@ namespace Apstory.Scaffold.VisualStudio
             catch (Exception ex)
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                ReportBuildErrorAsync($"Exception in ExecuteToolbarCodeScaffoldAsync: {ex.Message}");
+                LogError($"Exception in ExecuteToolbarCodeScaffoldAsync: {ex.Message}");
                 ErrorListProvider.Show();
             }
             finally
@@ -159,11 +159,10 @@ namespace Apstory.Scaffold.VisualStudio
             await this.LoadConfigAsync();
             if (string.IsNullOrEmpty(this.config.SqlDestination))
             {
-                Log("SQL Destination Required");
+                LogError("SQL Destination Required", Hardcoded.ErrorLogSql);
                 ExecuteToolbarOpenConfigAsync(sender, e);
                 return;
             }
-
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (isSqlPushing)
@@ -211,7 +210,7 @@ namespace Apstory.Scaffold.VisualStudio
                     ErrorListProvider.Tasks.Clear();
 
                     foreach (var errorMessage in errorsToLog)
-                        ReportBuildErrorAsync(errorMessage, Hardcoded.ErrorLogSql);
+                        LogError(errorMessage, Hardcoded.ErrorLogSql);
 
                     ErrorListProvider.Show(); // This ensures the Error List pops up
                 }
@@ -221,7 +220,7 @@ namespace Apstory.Scaffold.VisualStudio
             catch (Exception ex)
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                ReportBuildErrorAsync($"Exception in ExecuteContextMenuSqlUpdateAsync: {ex.Message}");
+                LogError($"Exception in ExecuteContextMenuSqlUpdateAsync: {ex.Message}");
                 ErrorListProvider.Show();
             }
             finally
@@ -281,7 +280,7 @@ namespace Apstory.Scaffold.VisualStudio
                     ErrorListProvider.Tasks.Clear();
 
                     foreach (var errorMessage in errorsToLog)
-                        ReportBuildErrorAsync(errorMessage, Hardcoded.ErrorLogScaffold);
+                        LogError(errorMessage, Hardcoded.ErrorLogScaffold);
 
                     ErrorListProvider.Show(); // This ensures the Error List pops up
                 }
@@ -291,7 +290,7 @@ namespace Apstory.Scaffold.VisualStudio
             catch (Exception ex)
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                ReportBuildErrorAsync($"Exception in ExecuteContextMenuCodeScaffoldAsync: {ex.Message}");
+                LogError($"Exception in ExecuteContextMenuCodeScaffoldAsync: {ex.Message}");
                 ErrorListProvider.Show();
             }
             finally
