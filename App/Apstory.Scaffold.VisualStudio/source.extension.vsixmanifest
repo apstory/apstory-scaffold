@@ -3,7 +3,10 @@
     <Metadata>
         <Identity Id="Apstory.Scaffold.VisualStudio.c427993d-d6a5-4070-9091-0c5e85d7d26a" Version="1.0" Language="en-US" Publisher="Jaco Bijker" />
         <DisplayName>Apstory.Scaffold.VisualStudio</DisplayName>
-        <Description xml:space="preserve">Apstory Scaffolding Plugin</Description>
+        <Description xml:space="preserve">ApStory Scaffolding Plugin. This extension allows you to invoke the Apstory.Scaffold.App dotnet tool from the visual studio toolbar and solution context menu.
+It supports scaffolding sql tables, sql procs, domain, dal code. It also supports pushing db changes directly to the SQL database without having to use schema compare.</Description>
+        <Icon>Resources\icon-cloud-engineering-1.png</Icon>
+        <PreviewImage>Resources\icon-cloud-engineering-1.png</PreviewImage>
     </Metadata>
     <Installation>
         <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0, 18.0)">
