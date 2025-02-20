@@ -299,5 +299,22 @@ namespace Apstory.Scaffold.VisualStudio
                 Log($"Exception Loading Config: {ex.Message}");
             }
         }
+
+        
+
+        private void ReportBuildErrorAsync(string message, string file = "", int line = 1, int column = 1)
+        {
+            var task = new ErrorTask
+            {
+                Category = TaskCategory.BuildCompile, // Treat as a build error
+                ErrorCategory = TaskErrorCategory.Error,
+                Text = message,
+                Document = file,
+                Line = line - 1,  // Line numbers are zero-based
+                Column = column - 1
+            };
+
+            ErrorListProvider.Tasks.Add(task);
+        }
     }
 }

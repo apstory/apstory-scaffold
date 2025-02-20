@@ -1,8 +1,10 @@
-﻿using EnvDTE;
+﻿using Apstory.Scaffold.VisualStudio.Model;
+using EnvDTE;
 using Microsoft.VisualStudio.Shell;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Apstory.Scaffold.VisualStudio
@@ -11,6 +13,7 @@ namespace Apstory.Scaffold.VisualStudio
     public sealed partial class ApstoryScaffoldVisualStudioPackage : AsyncPackage
     {
         private bool isScaffolding = false;
+        private bool isSqlPushing = false;
 
         private async void ExecuteToolbarOpenConfigAsync(object sender, EventArgs e)
         {
@@ -42,19 +45,52 @@ namespace Apstory.Scaffold.VisualStudio
             }
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            var solutionDirectory = GetSolutionDirectory();
+            if (isSqlPushing)
+            {
+                Log("SQL push is already running. Please wait.");
+                return;
+            }
 
-            Log($"Executing Code Scaffold in {solutionDirectory} using {this.config.SqlDestination}");
+            isSqlPushing = true;
+            btnSqlUpdate.Enabled = !isSqlPushing;
 
-            // Run the process on a background thread
-            var logs = await Task.Run(() => ExecuteSqlUpdate(string.Empty, solutionDirectory));
+            try
+            {
 
-            // Return to the UI thread for logging
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            foreach (var log in logs)
-                Log(log);
+                var solutionDirectory = GetSolutionDirectory();
+                Log($"Executing Code Scaffold in {solutionDirectory} using {this.config.SqlDestination}");
 
-            Log($"SQL Update Complete.");
+                // Run the process on a background thread
+                var logs = await Task.Run(() => ExecuteSqlUpdate(string.Empty, solutionDirectory));
+                // Return to the UI thread for logging
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                foreach (var log in logs)
+                    Log(log);
+
+                List<string> errorsToLog = logs.Where(s => s.StartsWith("[Error]")).ToList();
+                if (errorsToLog.Any())
+                {
+                    ErrorListProvider.Tasks.Clear();
+
+                    foreach (var errorMessage in errorsToLog)
+                        ReportBuildErrorAsync(errorMessage, Hardcoded.ErrorLogSql);
+
+                    ErrorListProvider.Show(); // This ensures the Error List pops up
+                }
+
+                Log($"SQL Update Complete.");
+            }
+            catch (Exception ex)
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                ReportBuildErrorAsync($"Exception in ExecuteToolbarSqlUpdateAsync: {ex.Message}");
+                ErrorListProvider.Show();
+            }
+            finally
+            {
+                isSqlPushing = false;
+                btnSqlUpdate.Enabled = !isSqlPushing;
+            }
         }
 
         private async void ExecuteToolbarCodeScaffoldAsync(object sender, EventArgs e)
@@ -92,12 +128,24 @@ namespace Apstory.Scaffold.VisualStudio
                 foreach (var log in logs)
                     Log(log);
 
+                List<string> errorsToLog = logs.Where(s => s.StartsWith("[Error]")).ToList();
+                if (errorsToLog.Any())
+                {
+                    ErrorListProvider.Tasks.Clear();
+
+                    foreach (var errorMessage in errorsToLog)
+                        ReportBuildErrorAsync(errorMessage, Hardcoded.ErrorLogScaffold);
+
+                    ErrorListProvider.Show(); // This ensures the Error List pops up
+                }
+
                 Log($"Scaffolding completed for {fileName}");
             }
             catch (Exception ex)
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                Log($"Error in ExecuteToolbarCodeScaffoldAsync: {ex.Message}");
+                ReportBuildErrorAsync($"Exception in ExecuteToolbarCodeScaffoldAsync: {ex.Message}");
+                ErrorListProvider.Show();
             }
             finally
             {
@@ -116,38 +164,71 @@ namespace Apstory.Scaffold.VisualStudio
                 return;
             }
 
-            var solutionDirectory = GetSolutionDirectory();
-            var selectedPaths = GetSelectedItemPaths();
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-
-            List<string> toUpdate = new List<string>();
-            foreach (var path in selectedPaths)
+            if (isSqlPushing)
             {
-                var fileName = Path.GetFileName(path);
-                if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
-                {
-                    Log($"Scaffolding only supports .sql files");
-                    return;
-                }
-
-                var schema = GetSchemaFromPath(path);
-                var tableOrProc = fileName.Replace(".sql", string.Empty);
-                toUpdate.Add($"{schema}.{tableOrProc}");
+                Log("SQL Push is already running. Please wait.");
+                return;
             }
 
-            var scaffoldArgs = string.Join(";", toUpdate.ToArray());
-            Log($"Executing Code Scaffold for {scaffoldArgs} in {solutionDirectory} using {this.config.SqlDestination}");
+            isSqlPushing = true;
+            btnSqlUpdate.Enabled = !isSqlPushing;
 
-            // Run the process on a background thread
-            var logs = await Task.Run(() => ExecuteSqlUpdate(scaffoldArgs, solutionDirectory));
+            try
+            {
+                var solutionDirectory = GetSolutionDirectory();
+                var selectedPaths = GetSelectedItemPaths();
+                List<string> toUpdate = new List<string>();
+                foreach (var path in selectedPaths)
+                {
+                    var fileName = Path.GetFileName(path);
+                    if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Log($"Scaffolding only supports .sql files");
+                        return;
+                    }
 
-            // Return to the UI thread for logging
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            foreach (var log in logs)
-                Log(log);
+                    var schema = GetSchemaFromPath(path);
+                    var tableOrProc = fileName.Replace(".sql", string.Empty);
+                    toUpdate.Add($"{schema}.{tableOrProc}");
+                }
 
-            Log($"SQL Update Complete.");
+                var scaffoldArgs = string.Join(";", toUpdate.ToArray());
+                Log($"Executing Code Scaffold for {scaffoldArgs} in {solutionDirectory} using {this.config.SqlDestination}");
+
+                // Run the process on a background thread
+                var logs = await Task.Run(() => ExecuteSqlUpdate(scaffoldArgs, solutionDirectory));
+
+                // Return to the UI thread for logging
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                foreach (var log in logs)
+                    Log(log);
+
+                List<string> errorsToLog = logs.Where(s => s.StartsWith("[Error]")).ToList();
+                if (errorsToLog.Any())
+                {
+                    ErrorListProvider.Tasks.Clear();
+
+                    foreach (var errorMessage in errorsToLog)
+                        ReportBuildErrorAsync(errorMessage, Hardcoded.ErrorLogSql);
+
+                    ErrorListProvider.Show(); // This ensures the Error List pops up
+                }
+
+                Log($"SQL Update Complete.");
+            }
+            catch (Exception ex)
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                ReportBuildErrorAsync($"Exception in ExecuteContextMenuSqlUpdateAsync: {ex.Message}");
+                ErrorListProvider.Show();
+            }
+            finally
+            {
+                isSqlPushing = false;
+                btnSqlUpdate.Enabled = !isSqlPushing;
+            }
         }
 
         private async void ExecuteContextMenuCodeScaffoldAsync(object sender, EventArgs e)
@@ -194,12 +275,24 @@ namespace Apstory.Scaffold.VisualStudio
                 foreach (var log in logs)
                     Log(log);
 
+                List<string> errorsToLog = logs.Where(s => s.StartsWith("[Error]")).ToList();
+                if (errorsToLog.Any())
+                {
+                    ErrorListProvider.Tasks.Clear();
+
+                    foreach (var errorMessage in errorsToLog)
+                        ReportBuildErrorAsync(errorMessage, Hardcoded.ErrorLogScaffold);
+
+                    ErrorListProvider.Show(); // This ensures the Error List pops up
+                }
+
                 Log($"Scaffolding Complete.");
             }
             catch (Exception ex)
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                Log($"Error in ExecuteContextMenuCodeScaffoldAsync: {ex.Message}");
+                ReportBuildErrorAsync($"Exception in ExecuteContextMenuCodeScaffoldAsync: {ex.Message}");
+                ErrorListProvider.Show();
             }
             finally
             {

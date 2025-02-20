@@ -13,9 +13,11 @@ class Program
     static void Main(string[] args)
     {
         // Build configuration from command-line arguments
-        var parsedArgs = ParseArgs(args);
-        var configuration = new ConfigurationBuilder()
-            .AddCommandLine(parsedArgs, new Dictionary<string, string> {
+        try
+        {
+            var parsedArgs = ParseArgs(args);
+            var configuration = new ConfigurationBuilder()
+                .AddCommandLine(parsedArgs, new Dictionary<string, string> {
                 { "-sqlproject", "sqlproject" },
                 { "-namespace", "namespace" },
                 { "-regen", "regen" },
@@ -23,87 +25,92 @@ class Program
                 { "-sqlpush", "sqlpush" },
                 { "-sqldestination", "sqldestination" },
                 { "-help", "help" },
-            })
-            .Build();
+                })
+                .Build();
 
-        if (args.Contains("-help"))
-        {
-            Console.WriteLine("Available Command-Line Switches:");
-            Console.WriteLine("-sqlproject <path>       : Overrides the SQL project path instead of letting the application search for it.");
-            Console.WriteLine("-namespace <name>        : Overrides the namespace for scaffolded code instead of fetching it from the sqlproj.");
-            Console.WriteLine("-regen <params>          : Executes immediate regeneration of files. Will regenerate all found schemas when no additional information supplied. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to regenerate. Can send multiple entities with ;");
-            Console.WriteLine("-sqlpush <params>        : Pushes changes to database. Can leave empty to detect git changes. Specify a table 'dbo.tablename' (Limited Functionality), or a procedure 'dbo.zgen_procname' to push. Requires -sqldestination switch as well. Please note: No table updates are pushed, only the initial creates can be pushed. Can send multiple entities with ;");
-            Console.WriteLine("-sqldestination <params> : Pushes changes to database. This is the connection string of the database.");
-            Console.WriteLine("-clean                   : Deletes existing generated files.");
-
-            return;
-        }
-
-        string overrideSqlProjectPath = configuration["sqlproject"];
-        string overrideNamespace = configuration["namespace"];
-        var regenerate = args.Contains("-regen");
-        var clean = args.Contains("-clean");
-        var sqlpush = args.Contains("-sqldestination");
-
-        int flags = 0;
-        if (args.Contains("-regen")) flags = (flags << 1) | 1;
-        if (args.Contains("-clean")) flags = (flags << 1) | 1;
-        if (args.Contains("-sqldestination")) flags = (flags << 1) | 1;
-
-        //Ensure 0 or only 1 flag is set
-        if (flags > 1)
-        {
-            Console.WriteLine("Only specify one of the following: clean, regen, or sqldestination.");
-            return;
-        }
-
-        Console.WriteLine($"Override Sql Project Path: {overrideSqlProjectPath}");
-        Console.WriteLine($"Override Namespace: {overrideNamespace}");
-
-        string basePath = Environment.CurrentDirectory;
-        if (overrideSqlProjectPath is null)
-            overrideSqlProjectPath = SearchForSqlProjectFile(basePath);
-
-        Logger.LogDebug($"Using SQL Project: {overrideSqlProjectPath}");
-        var csharpConfig = SetupProjectConfiguration(basePath, overrideSqlProjectPath, overrideNamespace);
-
-        var host = Host.CreateDefaultBuilder(args)
-            .ConfigureAppConfiguration((context, config) =>
+            if (args.Contains("-help"))
             {
-                config.AddConfiguration(configuration); // Merge command-line args into DI config
-            })
-            .ConfigureServices((context, services) =>
+                Console.WriteLine("Available Command-Line Switches:");
+                Console.WriteLine("-sqlproject <path>       : Overrides the SQL project path instead of letting the application search for it.");
+                Console.WriteLine("-namespace <name>        : Overrides the namespace for scaffolded code instead of fetching it from the sqlproj.");
+                Console.WriteLine("-regen <params>          : Executes immediate regeneration of files. Will regenerate all found schemas when no additional information supplied. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to regenerate. Can send multiple entities with ;");
+                Console.WriteLine("-sqlpush <params>        : Pushes changes to database. Can leave empty to detect git changes. Specify a table 'dbo.tablename' (Limited Functionality), or a procedure 'dbo.zgen_procname' to push. Requires -sqldestination switch as well. Please note: No table updates are pushed, only the initial creates can be pushed. Can send multiple entities with ;");
+                Console.WriteLine("-sqldestination <params> : Pushes changes to database. This is the connection string of the database.");
+                Console.WriteLine("-clean                   : Deletes existing generated files.");
+
+                return;
+            }
+
+            string overrideSqlProjectPath = configuration["sqlproject"];
+            string overrideNamespace = configuration["namespace"];
+            var regenerate = args.Contains("-regen");
+            var clean = args.Contains("-clean");
+            var sqlpush = args.Contains("-sqldestination");
+
+            int flags = 0;
+            if (args.Contains("-regen")) flags = (flags << 1) | 1;
+            if (args.Contains("-clean")) flags = (flags << 1) | 1;
+            if (args.Contains("-sqldestination")) flags = (flags << 1) | 1;
+
+            //Ensure 0 or only 1 flag is set
+            if (flags > 1)
             {
-                services.AddMemoryCache();
+                Console.WriteLine("Only specify one of the following: clean, regen, or sqldestination.");
+                return;
+            }
 
-                services.AddSingleton(csharpConfig);
-                services.AddSingleton<LockingService>();
-                services.AddSingleton<SqlTableCachingService>();
+            Console.WriteLine($"Override Sql Project Path: {overrideSqlProjectPath}");
+            Console.WriteLine($"Override Namespace: {overrideNamespace}");
 
-                services.AddTransient<SqlDalRepositoryScaffold>();
-                services.AddTransient<SqlScriptFileScaffold>();
-                services.AddTransient<SqlProjectScaffold>();
-                services.AddTransient<SqlModelScaffold>();
-                services.AddTransient<SqlDalRepositoryInterfaceScaffold>();
-                services.AddTransient<SqlDomainServiceScaffold>();
-                services.AddTransient<SqlDomainServiceInterfaceScaffold>();
-                services.AddTransient<SqlForeignDomainServiceScaffold>();
-                services.AddTransient<SqlForeignDomainServiceInterfaceScaffold>();
-                services.AddTransient<SqlDalRepositoryServiceCollectionExtensionScaffold>();
-                services.AddTransient<SqlDomainServiceServiceCollectionExtensionScaffold>();
+            string basePath = Environment.CurrentDirectory;
+            if (overrideSqlProjectPath is null)
+                overrideSqlProjectPath = SearchForSqlProjectFile(basePath);
 
-                if (clean)
-                    services.AddHostedService<SqlScaffoldCleanupWorker>();
-                else if (regenerate)
-                    services.AddHostedService<SqlScaffoldRegenerationWorker>();
-                else if (sqlpush)
-                    services.AddHostedService<SqlUpdateWorker>();
-                else
-                    services.AddHostedService<SqlScaffoldWatcherWorker>();
-            })
-            .Build();
+            Logger.LogDebug($"Using SQL Project: {overrideSqlProjectPath}");
+            var csharpConfig = SetupProjectConfiguration(basePath, overrideSqlProjectPath, overrideNamespace);
 
-        host.Run();
+            var host = Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration((context, config) =>
+                {
+                    config.AddConfiguration(configuration); // Merge command-line args into DI config
+                })
+                .ConfigureServices((context, services) =>
+                {
+                    services.AddMemoryCache();
+
+                    services.AddSingleton(csharpConfig);
+                    services.AddSingleton<LockingService>();
+                    services.AddSingleton<SqlTableCachingService>();
+
+                    services.AddTransient<SqlDalRepositoryScaffold>();
+                    services.AddTransient<SqlScriptFileScaffold>();
+                    services.AddTransient<SqlProjectScaffold>();
+                    services.AddTransient<SqlModelScaffold>();
+                    services.AddTransient<SqlDalRepositoryInterfaceScaffold>();
+                    services.AddTransient<SqlDomainServiceScaffold>();
+                    services.AddTransient<SqlDomainServiceInterfaceScaffold>();
+                    services.AddTransient<SqlForeignDomainServiceScaffold>();
+                    services.AddTransient<SqlForeignDomainServiceInterfaceScaffold>();
+                    services.AddTransient<SqlDalRepositoryServiceCollectionExtensionScaffold>();
+                    services.AddTransient<SqlDomainServiceServiceCollectionExtensionScaffold>();
+
+                    if (clean)
+                        services.AddHostedService<SqlScaffoldCleanupWorker>();
+                    else if (regenerate)
+                        services.AddHostedService<SqlScaffoldRegenerationWorker>();
+                    else if (sqlpush)
+                        services.AddHostedService<SqlUpdateWorker>();
+                    else
+                        services.AddHostedService<SqlScaffoldWatcherWorker>();
+                })
+                .Build();
+
+            host.Run();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex.Message);
+        }
     }
 
     private static string SearchForSqlProjectFile(string directory)
@@ -118,10 +125,7 @@ class Program
         var sqlProjFiles = Directory.EnumerateFiles(directory, "*.sqlproj", SearchOption.AllDirectories);
 
         if (!sqlProjFiles.Any())
-        {
-            Logger.LogError("No SQL Projects found. Aborting");
-            throw new Exception("No SQL Projects found. Aborting");
-        }
+            throw new Exception("No SQL Project found. Aborting");
 
         var sqlProjFile = sqlProjFiles.First();
         if (sqlProjFiles.Count() > 1)

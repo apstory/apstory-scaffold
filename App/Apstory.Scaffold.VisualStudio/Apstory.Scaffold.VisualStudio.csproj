@@ -47,6 +47,7 @@
   <ItemGroup>
     <Compile Include="Apstory.Scaffold.VisualStudioPackage.Commands.cs" />
     <Compile Include="Apstory.Scaffold.VisualStudioPackage.Utils.cs" />
+    <Compile Include="Model\Hardcoded.cs" />
     <Compile Include="Model\Enum\ImageStatus.cs" />
     <Compile Include="Model\ScaffoldConfig.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

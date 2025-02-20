@@ -63,6 +63,18 @@ namespace Apstory.Scaffold.VisualStudio
         private MenuCommand btnSqlUpdate;
 
         private ScaffoldConfig config;
+
+        private ErrorListProvider _errorListProvider;
+        public ErrorListProvider ErrorListProvider
+        {
+            get
+            {
+                if (_errorListProvider == null)
+                    _errorListProvider = new ErrorListProvider(ServiceProvider.GlobalProvider);
+
+                return _errorListProvider;
+            }
+        }
         #region Package Members
 
         /// <summary>

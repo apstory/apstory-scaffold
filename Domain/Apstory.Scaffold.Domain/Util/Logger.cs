@@ -23,7 +23,7 @@
         public static void LogSkipped(string message)
         {
             Console.ForegroundColor = ConsoleColor.Gray;
-            Console.WriteLine(message);
+            Console.WriteLine($"[Skipped] {message}");
             Console.ResetColor();
         }
 
@@ -32,7 +32,7 @@
             lock (syncRoot)
             {
                 Console.ForegroundColor = ConsoleColor.Green; // Lime is equivalent to green in console
-                Console.WriteLine(message);
+                Console.WriteLine($"[Success] {message}");
                 Console.ResetColor();
             }
         }
@@ -42,7 +42,7 @@
             lock (syncRoot)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine(message);
+                Console.WriteLine($"[Warn] {message}");
                 Console.ResetColor();
             }
         }
@@ -52,7 +52,7 @@
             lock (syncRoot)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine(message);
+                Console.WriteLine($"[Error] {message}");
                 Console.ResetColor();
             }
         }
