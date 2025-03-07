@@ -102,6 +102,16 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     scaffoldingResult = ScaffoldResult.Skipped;
 #endif
                 }
+
+                if (scaffoldingResult == ScaffoldResult.Created)
+                {
+                    var baseRepositoryPath = Path.Combine(Path.GetDirectoryName(_config.Directories.DalDirectory.ToSchemaString("dbo")), "BaseRepository.cs");
+                    if (!File.Exists(baseRepositoryPath))
+                    {
+                        FileUtils.WriteTextAndDirectory(baseRepositoryPath, GetBaseRepository());
+                        Logger.LogSuccess($"[Created Base Repository] {baseRepositoryPath}");
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -353,6 +363,11 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string GetCommonUtilNamespace(SqlStoredProcedure sqlStoredProcedure)
         {
             return _config.Namespaces.CommonUtilNamespace.ToSchemaString(sqlStoredProcedure.Schema);
+        }
+
+        private string GetBaseRepository()
+        {
+            return "using Microsoft.Data.SqlClient;\r\n\r\nnamespace Stonks.Dal.Dapper\r\n{\r\n\tpublic partial class BaseRepository\r\n\t{\r\n\t\tprivate string _connectionString;\r\n\t\tpublic BaseRepository(string connectionString)\r\n\t\t{\r\n\t\t\t_connectionString = connectionString;\r\n\t\t}\r\n\t\tprotected SqlConnection GetConnection()\r\n\t\t{\r\n\t\t\treturn new SqlConnection(_connectionString);\r\n\t\t}\r\n\t}\r\n}\r\n";
         }
     }
 }
