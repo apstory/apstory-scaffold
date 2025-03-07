@@ -205,9 +205,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var root = SyntaxFactory.CompilationUnit()
                                     .AddUsings(
-                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetCommonUtilNamespace(sqlStoredProcedure))),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetDalInterfaceNamespace(sqlStoredProcedure))),
-                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Data.SqlClient")),
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName($"{_config.Namespaces.DalNamespace.ToSchemaString("dbo")}.Utils")),
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Microsoft.Data.SqlClient")),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Data")),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Dapper")))
                                     .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDalNamespace(sqlStoredProcedure)))
@@ -360,10 +360,6 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return _config.Namespaces.DalInterfaceNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
 
-        private string GetCommonUtilNamespace(SqlStoredProcedure sqlStoredProcedure)
-        {
-            return _config.Namespaces.CommonUtilNamespace.ToSchemaString(sqlStoredProcedure.Schema);
-        }
 
         private string GetBaseRepository()
         {
