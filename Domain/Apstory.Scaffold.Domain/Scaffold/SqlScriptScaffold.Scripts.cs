@@ -45,8 +45,6 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("    IF @InitialTransCount = 0 BEGIN TRANSACTION @TranName");
             sb.AppendLine();
 
-            //SET @PoliticianId = NEWID();
-
             sb.AppendLine($"    IF @{primaryColumn.ColumnName} IS NULL");
             sb.AppendLine("    BEGIN");
             if (!primaryColumn.DataType.Equals("UNIQUEIDENTIFIER", StringComparison.OrdinalIgnoreCase))
