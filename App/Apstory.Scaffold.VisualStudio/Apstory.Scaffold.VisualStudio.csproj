@@ -103,9 +103,8 @@
     <Content Include="Resources\scaffold_config.png" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="$(TargetDir)Microsoft.VisualStudio.Threading.dll">
+    <Content Include="$(OutputPath)Microsoft.VisualStudio.Threading.dll">
       <PackagePath>lib</PackagePath>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
   </ItemGroup>
