@@ -7,6 +7,7 @@ using Microsoft.Data.SqlClient;
 using Dapper;
 using System.Diagnostics;
 using Apstory.Scaffold.Domain.Parser;
+using static System.Runtime.InteropServices.Marshalling.IIUnknownCacheStrategy;
 
 namespace Apstory.Scaffold.App.Worker
 {
@@ -42,7 +43,8 @@ namespace Apstory.Scaffold.App.Worker
                 Logger.LogInfo($"No -sqlPush parameter, checking git status");
                 var gitLogs = await ExecuteGitStatus();
 
-                var modifiedEntries = gitLogs.Where(s => s.StartsWith("\tmodified:")).Select(s => s.Replace("\tmodified:", string.Empty).Trim());
+                var modifiedEntries = gitLogs.Where(s => s.StartsWith("\tmodified:") || s.StartsWith("\tnew file:"))
+                                             .Select(s => s.Replace("\tmodified:", string.Empty).Replace("\tnew file:", string.Empty).Trim());
                 var validSqlEntries = modifiedEntries.Where(s => s.EndsWith(".sql", StringComparison.OrdinalIgnoreCase)).ToList();
 
                 if (!validSqlEntries.Any())
@@ -98,12 +100,37 @@ namespace Apstory.Scaffold.App.Worker
                     }
                     else
                     {
-                        Logger.LogError($"Could not find a table or stored procedure {schema}.{entityName}");
+                        var userDefinedTypePath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "User Defined Types", $"{entityName}.sql");
+                        if (File.Exists(userDefinedTypePath))
+                        {
+                            Logger.LogInfo($"Push User Type {schema}.{entityName}");
+                            await PushUserDefinedType(connectionString, userDefinedTypePath, schema, entityName);
+                        }
+                        else
+                            Logger.LogError($"Could not find a table, stored procedure or type {schema}.{entityName}");
                     }
                 }
             }
 
             _lifetime.StopApplication();
+        }
+
+        private async Task PushUserDefinedType(string connectionString, string userDefinedTypePath, string schema, string typeName)
+        {
+            try
+            {
+                var userDefinedTypeScript = FileUtils.SafeReadAllText(userDefinedTypePath);
+                bool exists = await ExecuteCheckIfUserDefinedTypeExists(connectionString, schema, typeName);
+                if (!exists)
+                    await ExecuteSql(connectionString, userDefinedTypeScript);
+                else
+                    Logger.LogWarn($"Type {schema}.{typeName} already exists, skipping.");
+
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Error pushing user defined type: {ex.Message}");
+            }
         }
 
         private async Task PushTableChanges(string connectionString, string tablePath)
@@ -166,6 +193,20 @@ namespace Apstory.Scaffold.App.Worker
                 Logger.LogError($"Error pushing sql: {ex.Message}\r\n{sql}");
             }
         }
+
+        private async Task<bool> ExecuteCheckIfUserDefinedTypeExists(string connectionString, string schemaName, string typeName)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                await connection.OpenAsync();
+
+                string query = @"SELECT COUNT(*) FROM sys.types  WHERE schema_id = SCHEMA_ID(@SchemaName) AND name = @TypeName";
+                int typeCount = await connection.ExecuteScalarAsync<int>(query, new { SchemaName = schemaName, TypeName = typeName });
+
+                return typeCount > 0;  // If count is greater than 0, UDT exists
+            }
+        }
+
 
         private async Task<bool> ExecuteCheckIfTableExists(string connectionString, string schemaName, string tableName)
         {

@@ -102,6 +102,24 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     scaffoldingResult = ScaffoldResult.Skipped;
 #endif
                 }
+
+                if (scaffoldingResult == ScaffoldResult.Created)
+                {
+                    var dalBasePath = Path.GetDirectoryName(_config.Directories.DalDirectory.ToSchemaString("dbo"));
+                    var baseRepositoryPath = Path.Combine(dalBasePath, "BaseRepository.cs");
+                    if (!File.Exists(baseRepositoryPath))
+                    {
+                        FileUtils.WriteTextAndDirectory(baseRepositoryPath, GetBaseRepositoryFile());
+                        Logger.LogSuccess($"[Created Base Repository] {baseRepositoryPath}");
+                    }
+
+                    var dapperExtensionsPath = Path.Combine(dalBasePath, "Utils", "DapperExtensions.cs");
+                    if (!File.Exists(dapperExtensionsPath))
+                    {
+                        FileUtils.WriteTextAndDirectory(dapperExtensionsPath, GetDapperExtensionsFile());
+                        Logger.LogSuccess($"[Created Dapper Extensions] {dapperExtensionsPath}");
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -195,9 +213,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var root = SyntaxFactory.CompilationUnit()
                                     .AddUsings(
-                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetCommonUtilNamespace(sqlStoredProcedure))),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetDalInterfaceNamespace(sqlStoredProcedure))),
-                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Data.SqlClient")),
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName($"{_config.Namespaces.DalNamespace.ToSchemaString("dbo")}.Utils")),
+                                        SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Microsoft.Data.SqlClient")),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Data")),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Dapper")))
                                     .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDalNamespace(sqlStoredProcedure)))
@@ -350,9 +368,15 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return _config.Namespaces.DalInterfaceNamespace.ToSchemaString(sqlStoredProcedure.Schema);
         }
 
-        private string GetCommonUtilNamespace(SqlStoredProcedure sqlStoredProcedure)
+
+        private string GetBaseRepositoryFile()
         {
-            return _config.Namespaces.CommonUtilNamespace.ToSchemaString(sqlStoredProcedure.Schema);
+            return "using Microsoft.Data.SqlClient;\r\n\r\nnamespace Stonks.Dal.Dapper\r\n{\r\n\tpublic partial class BaseRepository\r\n\t{\r\n\t\tprivate string _connectionString;\r\n\t\tpublic BaseRepository(string connectionString)\r\n\t\t{\r\n\t\t\t_connectionString = connectionString;\r\n\t\t}\r\n\t\tprotected SqlConnection GetConnection()\r\n\t\t{\r\n\t\t\treturn new SqlConnection(_connectionString);\r\n\t\t}\r\n\t}\r\n}\r\n";
+        }
+
+        private string GetDapperExtensionsFile()
+        {
+            return "using System.ComponentModel;\r\nusing System.Data;\r\n\r\nnamespace Stonks.Dal.Dapper.Utils\r\n{\r\n\tpublic static class DapperExtensions\r\n\t{\r\n\t\tpublic static DataTable ToDataTable<T>(this List<T> iList)\r\n\t\t{\r\n\t\t\tDataTable dataTable = new DataTable();\r\n\t\t\tdataTable.Columns.Add(\"Id\", typeof(T));\r\n\r\n\t\t\tforeach (T iListItem in iList)\r\n\t\t\t\tdataTable.Rows.Add(iListItem);\r\n\r\n\t\t\treturn dataTable;\r\n\t\t}\r\n\r\n\t\tpublic static DataTable ToDataTable<T>(this List<T> iList, string columnName)\r\n\t\t{\r\n\t\t\tDataTable dataTable = new DataTable();\r\n\t\t\tPropertyDescriptorCollection propertyDescriptorCollection =\r\n\t\t\t\tTypeDescriptor.GetProperties(typeof(T));\r\n\t\t\tfor (int i = 0; i < propertyDescriptorCollection.Count; i++)\r\n\t\t\t{\r\n\t\t\t\tPropertyDescriptor propertyDescriptor = propertyDescriptorCollection[i];\r\n\t\t\t\tType type = propertyDescriptor.PropertyType;\r\n\r\n\t\t\t\tif (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))\r\n\t\t\t\t\ttype = Nullable.GetUnderlyingType(type);\r\n\r\n\t\t\t\tif (propertyDescriptor.Name == columnName)\r\n\t\t\t\t{\r\n\t\t\t\t\tdataTable.Columns.Add(propertyDescriptor.Name, type);\r\n\t\t\t\t}\r\n\t\t\t}\r\n\t\t\tobject[] values = new object[propertyDescriptorCollection.Count];\r\n\t\t\tobject v = new object();\r\n\t\t\tforeach (T iListItem in iList)\r\n\t\t\t{\r\n\t\t\t\tfor (int i = 0; i < values.Length; i++)\r\n\t\t\t\t{\r\n\t\t\t\t\tvalues[i] = propertyDescriptorCollection[i].GetValue(iListItem);\r\n\t\t\t\t\tif (propertyDescriptorCollection[i].Name == columnName)\r\n\t\t\t\t\t{\r\n\t\t\t\t\t\tv = values[i];\r\n\t\t\t\t\t\tdataTable.Rows.Add(v);\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\t\t\t}\r\n\t\t\treturn dataTable;\r\n\t\t}\r\n\t}\r\n}";
         }
     }
 }

@@ -44,6 +44,22 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 }
             }
 
+            var typesDirectory = Path.Combine(_config.Directories.DBDirectory, sqlTable.Schema, "User Defined Types");
+            var udttIntsPath = Path.Combine(typesDirectory, "udtt_Ints.sql");
+            if (!File.Exists(udttIntsPath))
+            {
+                FileUtils.WriteTextAndDirectory(udttIntsPath, "CREATE TYPE [dbo].[udtt_Ints] AS TABLE ([Id] INT NULL);");
+                results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttIntsPath));
+
+            }
+
+            var udttUniqueIdentifiersPath = Path.Combine(typesDirectory, "udtt_Uniqueidentifiers.sql");
+            if (!File.Exists(udttUniqueIdentifiersPath))
+            {
+                FileUtils.WriteTextAndDirectory(udttUniqueIdentifiersPath, "CREATE TYPE [dbo].[udtt_Uniqueidentifiers] AS TABLE ([Id] UNIQUEIDENTIFIER NULL);");
+                results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttUniqueIdentifiersPath));
+            }
+
             return results;
         }
 

@@ -26,10 +26,10 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.Append("  (");
 
             var sortedColumns = GetSortedColumnsByNullableDefaultType(table);
-            var sortedColumnsNoDT = sortedColumns.Where(s => !skipDTDefaults.Contains(s.ColumnName)).ToList();
-            var sortedColumnsNoDtNoPK = sortedColumnsNoDT.Where(s => s.ColumnName != primaryColumn.ColumnName).ToList();
+            var sortedColumnsNoDt = sortedColumns.Where(s => !skipDTDefaults.Contains(s.ColumnName)).ToList();
+            var sortedColumnsNoDtNoPK = sortedColumnsNoDt.Where(s => s.ColumnName != primaryColumn.ColumnName).ToList();
 
-            foreach (var column in sortedColumnsNoDT)
+            foreach (var column in sortedColumnsNoDt)
                 sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}{((column.IsNullable || column.ColumnName == primaryColumn.ColumnName) ? "=NULL" : "")},");
 
             sb.Append("@RetMsg NVARCHAR(MAX) OUTPUT");
@@ -45,25 +45,48 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("    IF @InitialTransCount = 0 BEGIN TRANSACTION @TranName");
             sb.AppendLine();
 
-            // Check if it's an insert or update
             sb.AppendLine($"    IF @{primaryColumn.ColumnName} IS NULL");
             sb.AppendLine("    BEGIN");
-            sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
-            sb.Append("        (");
+            if (!primaryColumn.DataType.Equals("UNIQUEIDENTIFIER", StringComparison.OrdinalIgnoreCase))
+            {
+                sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
+                sb.Append("        (");
 
-            foreach (var column in sortedColumnsNoDtNoPK)
-                sb.Append($"[{column.ColumnName}],");
-            sb.Length--;
-            sb.AppendLine(")");
-            sb.AppendLine("      VALUES");
-            sb.Append("        (");
+                foreach (var column in sortedColumnsNoDtNoPK)
+                    sb.Append($"[{column.ColumnName}],");
+                sb.Length--;
+                sb.AppendLine(")");
+                sb.AppendLine("      VALUES");
+                sb.Append("        (");
 
-            foreach (var column in sortedColumnsNoDtNoPK)
-                sb.Append($"@{column.ColumnName},");
-            sb.Length--;
-            sb.AppendLine(");");
+                foreach (var column in sortedColumnsNoDtNoPK)
+                    sb.Append($"@{column.ColumnName},");
+                sb.Length--;
+                sb.AppendLine(");");
 
-            sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = SCOPE_IDENTITY();");
+                sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = SCOPE_IDENTITY();");
+            }
+            else
+            {
+                sb.AppendLine($"      SET @{primaryColumn.ColumnName} = NEWID();");
+                sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
+                sb.Append("        (");
+
+                foreach (var column in sortedColumnsNoDt)
+                    sb.Append($"[{column.ColumnName}],");
+                sb.Length--;
+                sb.AppendLine(")");
+                sb.AppendLine("      VALUES");
+                sb.Append("        (");
+
+                foreach (var column in sortedColumnsNoDt)
+                    sb.Append($"@{column.ColumnName},");
+                sb.Length--;
+                sb.AppendLine(");");
+
+                sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName};");
+            }
+
             sb.AppendLine("    END");
             sb.AppendLine("  ELSE");
             sb.AppendLine("    BEGIN");
