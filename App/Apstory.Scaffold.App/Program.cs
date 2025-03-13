@@ -6,6 +6,7 @@ using Apstory.Scaffold.Model.Config;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
 class Program
@@ -73,6 +74,10 @@ class Program
                 .ConfigureAppConfiguration((context, config) =>
                 {
                     config.AddConfiguration(configuration); // Merge command-line args into DI config
+                })
+                .ConfigureLogging(logging =>
+                {
+                    logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.None); // Suppress hosting logs
                 })
                 .ConfigureServices((context, services) =>
                 {

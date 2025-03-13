@@ -43,9 +43,8 @@ namespace Apstory.Scaffold.App.Worker
                 Logger.LogInfo($"No -sqlPush parameter, checking git status");
                 var gitLogs = await ExecuteGitStatus();
 
-                var modifiedEntries = gitLogs.Where(s => s.StartsWith("\tmodified:") || s.StartsWith("\tnew file:"))
-                                             .Select(s => s.Replace("\tmodified:", string.Empty).Replace("\tnew file:", string.Empty).Trim());
-                var validSqlEntries = modifiedEntries.Where(s => s.EndsWith(".sql", StringComparison.OrdinalIgnoreCase)).ToList();
+                var validSqlEntries = gitLogs.Where(s => !string.IsNullOrEmpty(s) && s.Trim().EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                                             .Select(s => s.Replace("\tmodified:", string.Empty).Replace("\tnew file:", string.Empty).Trim()).ToList();
 
                 if (!validSqlEntries.Any())
                 {
