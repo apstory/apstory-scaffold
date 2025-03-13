@@ -56,7 +56,9 @@ namespace Apstory.Scaffold.App.Worker
 
                 Logger.LogInfo($"Found {validSqlEntries.Count()} modified sql files");
                 List<string> entityArgs = new List<string>();
-                foreach (var sqlEntry in validSqlEntries)
+
+                var tablesFirstEntries = validSqlEntries.OrderByDescending(s => s.Contains("/Tables/") || s.Contains("\\Tables\\")).ToList();
+                foreach (var sqlEntry in tablesFirstEntries)
                 {
                     var schema = sqlEntry.GetSchemaFromPath();
                     var fileName = Path.GetFileName(sqlEntry).Replace(".sql", string.Empty);

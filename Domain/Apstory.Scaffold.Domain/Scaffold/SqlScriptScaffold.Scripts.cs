@@ -9,18 +9,18 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         public string GenerateInsertUpdateProcedure(SqlTable table)
         {
-            var sb = new StringBuilder();
+            var sb = new StringBuilder();            
 
             var primaryColumn = GetPrimaryColumn(table);
 
             // Start the SQL procedure creation
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_InsUpd] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_InsUpd] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine("-- Description    : Insert Update " + table.TableName);
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_InsUpd]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_InsUpd]");
 
             // Add parameters for each column
             sb.Append("  (");
@@ -138,13 +138,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var sb = new StringBuilder();
 
             // Start the SQL procedure creation
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetById] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetById] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine("-- Description    : Select By Id " + table.TableName);
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetById]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetById]");
 
             var primaryKeyColumn = GetPrimaryColumn(table);
 
@@ -182,14 +182,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             var sb = new StringBuilder();
 
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetBy{primaryKey.ColumnName}s] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetBy{primaryKey.ColumnName}s] ******/");
 
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine($"-- Description    : Select By Id {table.TableName}");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetBy{primaryKey.ColumnName}s]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBy{primaryKey.ColumnName}s]");
 
             // Generate procedure parameters for the UDTT
             if (primaryKey.DataType == "INT")
@@ -226,13 +226,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var sb = new StringBuilder();
 
             // Start the SQL procedure creation
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetByIds] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetByIds] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine("-- Description    : Select By Ids " + table.TableName);
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetByIds]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetByIds]");
 
             // Add parameters dynamically based on the foreign key columns
             sb.Append("  (");
@@ -298,13 +298,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var primaryColumn = GetPrimaryColumn(table);
 
             // Start the SQL procedure creation
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetByIdsPaging] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetByIdsPaging] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine("-- Description    : Select By Ids Paging " + table.TableName);
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetByIdsPaging]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetByIdsPaging]");
 
             var sortedColumns = GetSortedColumnsByNullableDefaultType(table);
             var foreignColumns = sortedColumns.Where(col => IsForeignKey(col, table)).ToList();
@@ -416,13 +416,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 var column = table.Columns.First(s => s.ColumnName == index.Column);
                 var sb = new StringBuilder();
 
-                sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetBy{index.Column}] ******/");
+                sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetBy{index.Column}] ******/");
                 sb.AppendLine("-- ===================================================================");
                 sb.AppendLine($"-- Description    : Select By {index.Column} {table.TableName}");
                 sb.AppendLine("-- ===================================================================");
                 sb.AppendLine();
 
-                sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetBy{index.Column}]");
+                sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBy{index.Column}]");
 
                 // Add parameter based on the indexed column
                 sb.AppendLine($"  (@{column.ColumnName} {column.DataType.ToLower()}{(column.DataTypeLength is not null ? $"({column.DataTypeLength})" : "")}=NULL)");
@@ -457,12 +457,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 throw new Exception("Table does not have a primary key constraint.");
             }
 
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_DelHrd] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_DelHrd] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine($"-- Description    : Hard Delete {table.TableName}");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_DelHrd]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_DelHrd]");
             sb.AppendLine($"  (@{primaryKeyConstraint.Column} {primaryKey.DataType.ToLower()}, @RetMsg NVARCHAR(MAX) OUTPUT)");
             sb.AppendLine("AS");
             sb.AppendLine("BEGIN");
@@ -514,12 +514,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 throw new Exception("Table does not have a primary key constraint.");
             }
 
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_DelSft] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_DelSft] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine($"-- Description    : Soft Delete {table.TableName}");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_DelSft]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_DelSft]");
             sb.AppendLine($"  (@{primaryKeyConstraint.Column} {primaryKey.DataType.ToLower()}, @RetMsg NVARCHAR(MAX) OUTPUT)");
             sb.AppendLine("AS");
             sb.AppendLine("BEGIN");
