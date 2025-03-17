@@ -149,7 +149,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var primaryKeyColumn = GetPrimaryColumn(table);
 
             // Add parameters
-            sb.AppendLine($"  (@{primaryKeyColumn.ColumnName} {primaryKeyColumn.DataType.ToLower()}, @IsActive bit=NULL)");
+            sb.AppendLine($"  (@{primaryKeyColumn.ColumnName} {primaryKeyColumn.DataType}{(string.IsNullOrEmpty(primaryKeyColumn.DataTypeLength) ? "" : $"({primaryKeyColumn.DataTypeLength})")}, @IsActive bit=NULL)");
 
             sb.AppendLine("AS");
             sb.AppendLine("BEGIN");
@@ -242,7 +242,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             // Loop through only foreign key columns
             foreach (var column in foreignColumns)
-                sb.Append($"@{column.ColumnName} {column.DataType.ToLower()}=NULL,");
+                sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}=NULL,");
 
             sb.Append($"@IsActive bit=NULL,");
             sb.Append($"@SortDirection varchar(5)='ASC'");
@@ -425,7 +425,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBy{index.Column}]");
 
                 // Add parameter based on the indexed column
-                sb.AppendLine($"  (@{column.ColumnName} {column.DataType.ToLower()}{(column.DataTypeLength is not null ? $"({column.DataTypeLength})" : "")}=NULL)");
+                sb.AppendLine($"  (@{column.ColumnName} {column.DataType.ToLower()}{(!string.IsNullOrEmpty(column.DataTypeLength) ? $"({column.DataTypeLength})" : "")})");
 
                 sb.AppendLine("AS");
                 sb.AppendLine("BEGIN");
