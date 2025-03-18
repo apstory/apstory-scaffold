@@ -5,5 +5,6 @@
         public string Namespace { get; set; }
         public string SqlProject { get; set; }
         public string SqlDestination { get; set; }
+        public string Variant { get; set; }
     }
 }

@@ -60,6 +60,8 @@ namespace Apstory.Scaffold.VisualStudio
                 arguments = $"-sqlproject \"{this.config.SqlProject}\" {arguments}";
             if (!string.IsNullOrWhiteSpace(this.config.Namespace))
                 arguments = $"-namespace {this.config.Namespace} {arguments}";
+            if (!string.IsNullOrWhiteSpace(this.config.Variant))
+                arguments = $"-variant {this.config.Variant} {arguments}";
 
             ProcessStartInfo psi = new ProcessStartInfo
             {
