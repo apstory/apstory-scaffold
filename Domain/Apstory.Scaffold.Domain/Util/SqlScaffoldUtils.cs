@@ -55,7 +55,7 @@ namespace Apstory.Scaffold.Domain.Util
                 "smallint" => "short",
                 "tinyint" => "byte",
                 "udtt_ints" => "List<int>",
-                "udtt_tinyints" => "List<int>",
+                "udtt_tinyints" => "List<byte>",
                 "udtt_uniqueidentifiers" => "List<Guid>",
                 "uniqueidentifier" => "Guid",
                 _ => throw new Exception($"ToCSharpTypeString lookup exception: {column.DataType}")

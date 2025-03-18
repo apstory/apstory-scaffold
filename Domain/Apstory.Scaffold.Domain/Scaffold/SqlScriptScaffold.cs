@@ -47,6 +47,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
 
             var typesDirectory = Path.Combine(_config.Directories.DBDirectory, sqlTable.Schema, "User Defined Types");
+            var udttTinyIntsPath = Path.Combine(typesDirectory, "udtt_TinyInts.sql");
+            if (!File.Exists(udttTinyIntsPath))
+            {
+                FileUtils.WriteTextAndDirectory(udttTinyIntsPath, "CREATE TYPE [dbo].[udtt_TinyInts] AS TABLE ([Id] TINYINT NULL);");
+                results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttTinyIntsPath));
+            }
+
             var udttIntsPath = Path.Combine(typesDirectory, "udtt_Ints.sql");
             if (!File.Exists(udttIntsPath))
             {
