@@ -52,7 +52,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine($"    BEGIN");
                 sb.AppendLine($"        SET @AssessmentId = NEWID()");
                 sb.AppendLine($"    END");
-
+                sb.AppendLine();
 
                 sb.AppendLine($"    MERGE INTO [{table.Schema}].[{table.TableName}] AS target");
                 sb.AppendLine($"    USING (SELECT @{primaryColumn.ColumnName} AS {primaryColumn.ColumnName}) AS source");
@@ -79,7 +79,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
                 sb.Length--;
                 sb.AppendLine(");");
-
+                sb.AppendLine();
                 sb.AppendLine($"    SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE {primaryColumn.ColumnName} = @{primaryColumn.ColumnName}");
             }
             else
