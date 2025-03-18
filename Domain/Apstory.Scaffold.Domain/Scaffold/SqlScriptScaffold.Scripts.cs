@@ -48,9 +48,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var primaryIsUniqueIdentifier = primaryColumn.DataType.Equals("UNIQUEIDENTIFIER", StringComparison.OrdinalIgnoreCase);
             if (generateMergeVariant && primaryIsUniqueIdentifier)
             {
-                sb.AppendLine($"    IF (@AssessmentId IS NULL)");
+                sb.AppendLine($"    IF (@{primaryColumn.ColumnName} IS NULL)");
                 sb.AppendLine($"    BEGIN");
-                sb.AppendLine($"        SET @AssessmentId = NEWID()");
+                sb.AppendLine($"        SET @{primaryColumn.ColumnName} = NEWID()");
                 sb.AppendLine($"    END");
                 sb.AppendLine();
 

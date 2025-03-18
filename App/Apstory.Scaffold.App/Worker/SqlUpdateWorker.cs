@@ -7,7 +7,6 @@ using Microsoft.Data.SqlClient;
 using Dapper;
 using System.Diagnostics;
 using Apstory.Scaffold.Domain.Parser;
-using static System.Runtime.InteropServices.Marshalling.IIUnknownCacheStrategy;
 
 namespace Apstory.Scaffold.App.Worker
 {
