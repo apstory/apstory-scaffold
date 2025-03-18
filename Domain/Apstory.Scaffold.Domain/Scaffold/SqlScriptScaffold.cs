@@ -3,6 +3,7 @@ using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model;
 using Apstory.Scaffold.Model.Config;
 using Apstory.Scaffold.Model.Enum;
+using Apstory.Scaffold.Model.Hardcoded;
 using Apstory.Scaffold.Model.Sql;
 using System.Text.RegularExpressions;
 
@@ -19,12 +20,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             _lockingService = lockingService;
         }
 
-        public async Task<List<ScaffoldFileResult>> GenerateCode(SqlTable sqlTable)
+        public async Task<List<ScaffoldFileResult>> GenerateCode(SqlTable sqlTable, string variant)
         {
             string lockName = $"{sqlTable.Schema}.{sqlTable.TableName}";
+            bool generateMergeVariant = Variant.Merge.Equals(variant, StringComparison.OrdinalIgnoreCase);
 
             List<ScaffoldFileResult> results = new List<ScaffoldFileResult>();
-            results.Add(await WriteScriptToDisk(sqlTable, GenerateInsertUpdateProcedure(sqlTable)));
+            results.Add(await WriteScriptToDisk(sqlTable, GenerateInsertUpdateProcedure(sqlTable, generateMergeVariant)));
             results.Add(await WriteScriptToDisk(sqlTable, GenerateDelHrdProcedure(sqlTable)));
             results.Add(await WriteScriptToDisk(sqlTable, GenerateDelSftProcedure(sqlTable)));
             results.Add(await WriteScriptToDisk(sqlTable, GenerateGetByIdProcedure(sqlTable)));

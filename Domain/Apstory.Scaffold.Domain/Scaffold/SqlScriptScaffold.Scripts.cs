@@ -7,9 +7,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
     {
         private string[] skipDTDefaults = new string[] { "CreateDT", "UpdateDT" };
 
-        public string GenerateInsertUpdateProcedure(SqlTable table)
+        public string GenerateInsertUpdateProcedure(SqlTable table, bool generateMergeVariant)
         {
-            var sb = new StringBuilder();            
+            var sb = new StringBuilder();
 
             var primaryColumn = GetPrimaryColumn(table);
 
@@ -45,63 +45,102 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("    IF @InitialTransCount = 0 BEGIN TRANSACTION @TranName");
             sb.AppendLine();
 
-            sb.AppendLine($"    IF @{primaryColumn.ColumnName} IS NULL");
-            sb.AppendLine("    BEGIN");
-            if (!primaryColumn.DataType.Equals("UNIQUEIDENTIFIER", StringComparison.OrdinalIgnoreCase))
+            var primaryIsUniqueIdentifier = primaryColumn.DataType.Equals("UNIQUEIDENTIFIER", StringComparison.OrdinalIgnoreCase);
+            if (generateMergeVariant && primaryIsUniqueIdentifier)
             {
-                sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
-                sb.Append("        (");
+                sb.AppendLine($"    IF (@AssessmentId IS NULL)");
+                sb.AppendLine($"    BEGIN");
+                sb.AppendLine($"        SET @AssessmentId = NEWID()");
+                sb.AppendLine($"    END");
+
+
+                sb.AppendLine($"    MERGE INTO [{table.Schema}].[{table.TableName}] AS target");
+                sb.AppendLine($"    USING (SELECT @{primaryColumn.ColumnName} AS {primaryColumn.ColumnName}) AS source");
+                sb.AppendLine($"    ON target.{primaryColumn.ColumnName} = source.{primaryColumn.ColumnName}");
+                sb.AppendLine($"    WHEN MATCHED THEN");
+                sb.AppendLine($"        UPDATE SET ");
 
                 foreach (var column in sortedColumnsNoDtNoPK)
+                    sb.AppendLine($"            [{column.ColumnName}]=@{column.ColumnName},");
+
+                sb.AppendLine($"            [UpdateDT]=GETDATE()");
+                sb.AppendLine($"    WHEN NOT MATCHED THEN");
+                sb.Append($"        INSERT (");
+
+                foreach (var column in sortedColumnsNoDt)
                     sb.Append($"[{column.ColumnName}],");
+
                 sb.Length--;
                 sb.AppendLine(")");
-                sb.AppendLine("      VALUES");
-                sb.Append("        (");
+                sb.Append("        VALUES (");
 
-                foreach (var column in sortedColumnsNoDtNoPK)
+                foreach (var column in sortedColumnsNoDt)
                     sb.Append($"@{column.ColumnName},");
+
                 sb.Length--;
                 sb.AppendLine(");");
 
-                sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = SCOPE_IDENTITY();");
+                sb.AppendLine($"    SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE {primaryColumn.ColumnName} = @{primaryColumn.ColumnName}");
             }
             else
             {
-                sb.AppendLine($"      SET @{primaryColumn.ColumnName} = NEWID();");
-                sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
-                sb.Append("        (");
+                sb.AppendLine($"    IF @{primaryColumn.ColumnName} IS NULL");
+                sb.AppendLine("    BEGIN");
+                if (!primaryIsUniqueIdentifier)
+                {
+                    sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
+                    sb.Append("        (");
 
-                foreach (var column in sortedColumnsNoDt)
-                    sb.Append($"[{column.ColumnName}],");
-                sb.Length--;
-                sb.AppendLine(")");
-                sb.AppendLine("      VALUES");
-                sb.Append("        (");
+                    foreach (var column in sortedColumnsNoDtNoPK)
+                        sb.Append($"[{column.ColumnName}],");
+                    sb.Length--;
+                    sb.AppendLine(")");
+                    sb.AppendLine("      VALUES");
+                    sb.Append("        (");
 
-                foreach (var column in sortedColumnsNoDt)
-                    sb.Append($"@{column.ColumnName},");
-                sb.Length--;
-                sb.AppendLine(");");
+                    foreach (var column in sortedColumnsNoDtNoPK)
+                        sb.Append($"@{column.ColumnName},");
+                    sb.Length--;
+                    sb.AppendLine(");");
+
+                    sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = SCOPE_IDENTITY();");
+                }
+                else
+                {
+                    sb.AppendLine($"      SET @{primaryColumn.ColumnName} = NEWID();");
+                    sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
+                    sb.Append("        (");
+
+                    foreach (var column in sortedColumnsNoDt)
+                        sb.Append($"[{column.ColumnName}],");
+                    sb.Length--;
+                    sb.AppendLine(")");
+                    sb.AppendLine("      VALUES");
+                    sb.Append("        (");
+
+                    foreach (var column in sortedColumnsNoDt)
+                        sb.Append($"@{column.ColumnName},");
+                    sb.Length--;
+                    sb.AppendLine(");");
+
+                    sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName};");
+                }
+                sb.AppendLine("    END");
+                sb.AppendLine("  ELSE");
+                sb.AppendLine("    BEGIN");
+                sb.AppendLine($"      UPDATE [{table.Schema}].[{table.TableName}]");
+                sb.Append("        SET ");
+
+                foreach (var column in sortedColumnsNoDtNoPK)
+                    sb.Append($"[{column.ColumnName}]=@{column.ColumnName},");
+
+                sb.Append($"[UpdateDT]=GETDATE()");
+                sb.AppendLine("");
+                sb.AppendLine($"        WHERE ([{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName});");
 
                 sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName};");
+                sb.AppendLine("    END");
             }
-
-            sb.AppendLine("    END");
-            sb.AppendLine("  ELSE");
-            sb.AppendLine("    BEGIN");
-            sb.AppendLine($"      UPDATE [{table.Schema}].[{table.TableName}]");
-            sb.Append("        SET ");
-
-            foreach (var column in sortedColumnsNoDtNoPK)
-                sb.Append($"[{column.ColumnName}]=@{column.ColumnName},");
-
-            sb.Append($"[UpdateDT]=GETDATE()");
-            sb.AppendLine("");
-            sb.AppendLine($"        WHERE ([{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName});");
-
-            sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName};");
-            sb.AppendLine("    END");
 
             sb.AppendLine();
             sb.AppendLine("    IF @@ERROR <> 0 BEGIN GOTO errorMsg_section END");

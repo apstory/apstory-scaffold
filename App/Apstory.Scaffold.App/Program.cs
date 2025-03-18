@@ -25,6 +25,7 @@ class Program
                 { "-clean", "clean" },
                 { "-sqlpush", "sqlpush" },
                 { "-sqldestination", "sqldestination" },
+                { "-variant", "variant" },
                 { "-help", "help" },
                 })
                 .Build();
@@ -37,6 +38,7 @@ class Program
                 Console.WriteLine("-regen <params>          : Executes immediate regeneration of files. Will regenerate all found schemas when no additional information supplied. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to regenerate. Can send multiple entities with ;");
                 Console.WriteLine("-sqlpush <params>        : Pushes changes to database. Can leave empty to detect git changes. Specify a table 'dbo.tablename' (Limited Functionality), or a procedure 'dbo.zgen_procname' to push. Requires -sqldestination switch as well. Please note: No table updates are pushed, only the initial creates can be pushed. Can send multiple entities with ;");
                 Console.WriteLine("-sqldestination <params> : Pushes changes to database. This is the connection string of the database.");
+                Console.WriteLine("-variant <params>        : Possible variants: 'merge' - merge will cause InsUpd procs to be generated with a merge statement that allows users to insert their own id on uniqueidentifiers");
                 Console.WriteLine("-clean                   : Deletes existing generated files.");
 
                 return;

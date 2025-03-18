@@ -163,7 +163,7 @@ namespace Apstory.Scaffold.App.Worker
             var tableInfo = _sqlTableCachingService.GetLatestTableAndCache(tablePath);
 
             await _sqlModelScaffold.GenerateCode(tableInfo);
-            var scriptResults = await _sqlScriptFileScaffold.GenerateCode(tableInfo);
+            var scriptResults = await _sqlScriptFileScaffold.GenerateCode(tableInfo, _configuration["variant"]);
 
             //Add any newly created files into the sqlproj
             var newScripts = scriptResults.Where(s => s.ScaffoldResult == Model.Enum.ScaffoldResult.Created).ToList();
