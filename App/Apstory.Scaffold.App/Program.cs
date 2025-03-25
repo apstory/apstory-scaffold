@@ -27,6 +27,8 @@ class Program
                 { "-sqldestination", "sqldestination" },
                 { "-variant", "variant" },
                 { "-help", "help" },
+                { "-tsModel", "tsmodel" },
+                { "-ngSearchPage", "ngsearchpage" }
                 })
                 .Build();
 
@@ -40,6 +42,8 @@ class Program
                 Console.WriteLine("-sqldestination <params> : Pushes changes to database. This is the connection string of the database.");
                 Console.WriteLine("-variant <params>        : Possible variants: 'merge' - merge will cause InsUpd procs to be generated with a merge statement that allows users to insert their own id on uniqueidentifiers");
                 Console.WriteLine("-clean                   : Deletes existing generated files.");
+                Console.WriteLine("-tsmodel                 : Typescript model to read structure from.");
+                Console.WriteLine("-ngsearchpage            : Location to generate angular search page to.");
 
                 return;
             }
@@ -49,6 +53,7 @@ class Program
             var regenerate = args.Contains("-regen");
             var clean = args.Contains("-clean");
             var sqlpush = args.Contains("-sqldestination");
+            var ngSearchPage = args.Contains("-ngsearchpage");
 
             int flags = 0;
             if (args.Contains("-regen")) flags = (flags << 1) | 1;
@@ -107,6 +112,8 @@ class Program
                         services.AddHostedService<SqlScaffoldRegenerationWorker>();
                     else if (sqlpush)
                         services.AddHostedService<SqlUpdateWorker>();
+                    else if (ngSearchPage)
+                        services.AddHostedService<TypescriptSearchPageWorker>();
                     else
                         services.AddHostedService<SqlScaffoldWatcherWorker>();
                 })
