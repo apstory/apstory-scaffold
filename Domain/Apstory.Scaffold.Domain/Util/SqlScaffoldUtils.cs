@@ -23,7 +23,7 @@ namespace Apstory.Scaffold.Domain.Util
                                   .Replace($"/#SCHEMA#", string.Empty)
                                   .Replace($"\\#SCHEMA#", string.Empty);
 
-            return declaration.Replace("#SCHEMA#", schema.ToPascalCase());
+            return declaration.Replace("#SCHEMA#", schema.ToUpper());
         }
 
         public static string ToDapperTypeString(this string sqlType)

@@ -45,19 +45,19 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     results.Add(await WriteScriptToDisk(sqlTable, script));
                 }
             }
-
+            
             var typesDirectory = Path.Combine(_config.Directories.DBDirectory, sqlTable.Schema, "User Defined Types");
             var udttTinyIntsPath = Path.Combine(typesDirectory, "udtt_TinyInts.sql");
             if (!File.Exists(udttTinyIntsPath))
             {
-                FileUtils.WriteTextAndDirectory(udttTinyIntsPath, "CREATE TYPE [dbo].[udtt_TinyInts] AS TABLE ([Id] TINYINT NULL);");
+                FileUtils.WriteTextAndDirectory(udttTinyIntsPath, $"CREATE TYPE [{sqlTable.Schema}].[udtt_TinyInts] AS TABLE ([Id] TINYINT NULL);");
                 results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttTinyIntsPath));
             }
 
             var udttIntsPath = Path.Combine(typesDirectory, "udtt_Ints.sql");
             if (!File.Exists(udttIntsPath))
             {
-                FileUtils.WriteTextAndDirectory(udttIntsPath, "CREATE TYPE [dbo].[udtt_Ints] AS TABLE ([Id] INT NULL);");
+                FileUtils.WriteTextAndDirectory(udttIntsPath, $"CREATE TYPE [{sqlTable.Schema}].[udtt_Ints] AS TABLE ([Id] INT NULL);");
                 results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttIntsPath));
 
             }
@@ -65,7 +65,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var udttUniqueIdentifiersPath = Path.Combine(typesDirectory, "udtt_Uniqueidentifiers.sql");
             if (!File.Exists(udttUniqueIdentifiersPath))
             {
-                FileUtils.WriteTextAndDirectory(udttUniqueIdentifiersPath, "CREATE TYPE [dbo].[udtt_Uniqueidentifiers] AS TABLE ([Id] UNIQUEIDENTIFIER NULL);");
+                FileUtils.WriteTextAndDirectory(udttUniqueIdentifiersPath, $"CREATE TYPE [{sqlTable.Schema}].[udtt_Uniqueidentifiers] AS TABLE ([Id] UNIQUEIDENTIFIER NULL);");
                 results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttUniqueIdentifiersPath));
             }
 
