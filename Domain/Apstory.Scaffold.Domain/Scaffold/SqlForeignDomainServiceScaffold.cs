@@ -259,12 +259,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             methodBuilder.AppendLine($"protected async Task<List<{modelNs}.{tableName}>> Append{refTable}(List<{modelNs}.{tableName}> {tableName.ToCamelCase()}s)");
             methodBuilder.AppendLine("{");
 
-            if (column.IsNullable)
-                methodBuilder.AppendLine($"    var distinct{columnName}Ids = {tableName.ToCamelCase()}s.Where(s => s.{columnName}.HasValue).Select(s => s.{columnName}.Value).Distinct().ToList();");
+            var hasDefaultValue = !string.IsNullOrWhiteSpace(column.DefaultValue);
+            if (column.IsNullable || hasDefaultValue)
+                methodBuilder.AppendLine($"    var distinct{columnName}s = {tableName.ToCamelCase()}s.Where(s => s.{columnName}.HasValue).Select(s => s.{columnName}.Value).Distinct().ToList();");
             else
-                methodBuilder.AppendLine($"    var distinct{columnName}Ids = {tableName.ToCamelCase()}s.Select(s => s.{columnName}).Distinct().ToList();");
+                methodBuilder.AppendLine($"    var distinct{columnName}s = {tableName.ToCamelCase()}s.Select(s => s.{columnName}).Distinct().ToList();");
 
-            methodBuilder.AppendLine($"    var distinct{refTable}s = await _{refTable.ToCamelCase()}Repo.Get{refTable}By{refTable}Ids(distinct{columnName}Ids, null);");
+            methodBuilder.AppendLine($"    var distinct{refTable}s = await _{refTable.ToCamelCase()}Repo.Get{refTable}By{refTable}Ids(distinct{columnName}s, null);");
             methodBuilder.AppendLine();
             methodBuilder.AppendLine($"    foreach (var {tableName.ToCamelCase()} in {tableName.ToCamelCase()}s)");
             methodBuilder.AppendLine("    {");
