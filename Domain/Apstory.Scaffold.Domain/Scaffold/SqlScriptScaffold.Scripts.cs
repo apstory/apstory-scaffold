@@ -1,4 +1,6 @@
-﻿using Apstory.Scaffold.Model.Sql;
+﻿using Apstory.Scaffold.Domain.Service;
+using Apstory.Scaffold.Model.Config;
+using Apstory.Scaffold.Model.Sql;
 using System.Text;
 
 namespace Apstory.Scaffold.Domain.Scaffold
@@ -6,6 +8,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
     public partial class SqlScriptFileScaffold
     {
         private string[] skipDTDefaults = new string[] { "CreateDT", "UpdateDT" };
+
 
         public string GenerateInsertUpdateProcedure(SqlTable table)
         {
@@ -556,6 +559,235 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sb.ToString();
         }
 
+        public string GenerateSearchProcedure(SqlTable sqlTable,string sqlStoredProcedurePath, SqlStoredProcedure sqlStoredProcedure)
+        {
+            var sb = new StringBuilder();
+            var primaryColumn = GetPrimaryColumn(sqlTable);
+            bool referenceTableExists = false;
+            sb.AppendLine($"/****** Object:  StoredProcedure [{sqlTable.Schema}].[{sqlStoredProcedure.StoredProcedureName}] ******/");
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine($"-- Description     : Search {sqlTable.TableName} based on provided filters.");
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine();
+
+            sb.AppendLine($"CREATE PROCEDURE [{sqlTable.Schema}].[{sqlStoredProcedure.StoredProcedureName}]");
+            sb.AppendLine("(");
+
+            var parameters = sqlStoredProcedure.Parameters;
+
+            var standardParams = new[] {"SortDirection", "PageNumber", "PageSize" };
+            var existingStandardParams = parameters.Select(p => p.ColumnName.ToLower()).ToList();
+
+            var filteredParams = parameters
+                .Where(p => !standardParams.Contains(p.ColumnName, StringComparer.OrdinalIgnoreCase))
+                .ToList();
+
+
+            foreach (var param in parameters)
+            {
+                if (param.ColumnName.ToLower().Equals("referencenumber", StringComparison.OrdinalIgnoreCase))
+                {
+                    var referencetableName = $"{sqlTable.TableName}Reference";
+                    var directory = Directory.GetParent(Path.GetDirectoryName(sqlStoredProcedurePath));
+                    var tablePath = Path.Combine(directory.FullName, "Tables", $"{referencetableName}.sql");
+
+                    if (File.Exists(tablePath))
+                    {
+                        referenceTableExists = true;
+                    }
+                }
+
+                sb.Append($"    @{param.ColumnName} {param.DataType}");
+
+                if (param.DataType.ToLower().Contains("udtt_"))
+                {
+                    sb.Append(" READONLY");
+                }
+                else if (!string.IsNullOrEmpty(param.DataTypeLength) &&
+                         (param.DataType.ToLower().StartsWith("varchar") || param.DataType.ToLower().StartsWith("nvarchar")))
+                {
+                    sb.Append($"({param.DataTypeLength})");
+                }
+
+                if (!string.IsNullOrEmpty(param.DefaultValue))
+                {
+                    sb.Append($" = '{param.DefaultValue}'");
+                }
+             
+
+                sb.AppendLine(",");
+            }
+
+           
+            if (!existingStandardParams.Contains("sortdirection"))
+                sb.AppendLine("    @SortDirection VARCHAR(5) = 'DESC',");
+            if (!existingStandardParams.Contains("pagenumber"))
+                sb.AppendLine("    @PageNumber INT = 1,");
+            if (!existingStandardParams.Contains("pagesize"))
+                sb.AppendLine("    @PageSize INT = 50");
+            if (!existingStandardParams.Contains("isactive"))
+                sb.AppendLine("    @IsActive BIT = 1");
+
+            sb.Length -= 3; // Trim last comma
+            sb.AppendLine();
+            sb.AppendLine(")");
+            sb.AppendLine("AS");
+            sb.AppendLine("BEGIN");
+            sb.AppendLine("    SET NOCOUNT ON;");
+            sb.AppendLine("    SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;");
+            sb.AppendLine();
+
+            sb.AppendLine($"    WITH CTE_{sqlTable.TableName} AS (");
+            sb.AppendLine($"        SELECT T.*");
+            sb.AppendLine($"        FROM [{sqlTable.Schema}].[{sqlTable.TableName}] T");
+            if (referenceTableExists)
+            {
+                sb.AppendLine($"        INNER JOIN [{sqlTable.Schema}].[{sqlTable.TableName}Reference] RT ON T.[{sqlTable.TableName}Id] = RT.[{sqlTable.TableName}ReferenceId]  ");
+
+            }
+            sb.AppendLine("        WHERE ");
+
+            // Check if the stored procedure name contains 'Date' and apply date filters as a combined condition
+            if (sqlStoredProcedure.StoredProcedureName.Contains("Date", StringComparison.OrdinalIgnoreCase))
+            {
+                sb.AppendLine($"             T.CreateDT BETWEEN @FromDateTime AND @ToDateTime AND");
+            }
+            var filterParams = parameters
+                .Where(p => !standardParams.Contains(p.ColumnName) &&
+                            !p.ColumnName.Equals("FromDateTime", StringComparison.OrdinalIgnoreCase) &&
+                            !p.ColumnName.Equals("ToDateTime", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            for (int i = 0; i < filterParams.Count; i++)
+            {
+                var param = filterParams[i];
+           
+                bool isLast = (i == filterParams.Count - 1);
+
+                if (param.DataType.ToLower().Contains("udtt_"))
+                {
+                    var foreignKeyColumn = GetForeignKeyColumnName(sqlTable, param.ColumnName);
+                    sb.Append($"             T.{foreignKeyColumn} IN (SELECT [Id] FROM @{param.ColumnName})");
+                }
+                else
+                {
+                    if (referenceTableExists && param.ColumnName.ToLower().Equals("referencenumber"))
+                    {
+                        sb.Append($"             RT.{sqlTable.TableName}ReferenceNumber = @{param.ColumnName}");
+
+                    }
+                    else
+                    {
+                        sb.Append($"             T.{param.ColumnName} = @{param.ColumnName}");
+
+                    }
+
+
+
+                }
+
+                if (!isLast)
+                    sb.AppendLine(" AND");
+              
+            }
+
+            sb.AppendLine("        ORDER BY");
+            sb.AppendLine($"            CASE WHEN @SortDirection = 'ASC' THEN T.[CreateDT] END ASC,");
+            sb.AppendLine($"            CASE WHEN @SortDirection = 'DESC' THEN T.[CreateDT] END DESC");
+            sb.AppendLine("        OFFSET @PageSize * (@PageNumber - 1) ROWS");
+            sb.AppendLine("        FETCH NEXT @PageSize ROWS ONLY");
+            sb.AppendLine("    ),");
+
+            sb.AppendLine("    CTE_TotalRows AS (");
+            sb.AppendLine($"        SELECT COUNT({primaryColumn?.ColumnName ?? "1"}) AS TotalRows");
+            sb.AppendLine($"        FROM [{sqlTable.Schema}].[{sqlTable.TableName}] T");
+            sb.AppendLine("        WHERE ");
+
+            // Reapply the same date filter for total rows query
+            if (sqlStoredProcedure.StoredProcedureName.Contains("Date", StringComparison.OrdinalIgnoreCase))
+            {
+                sb.AppendLine($"             T.CreateDT BETWEEN @FromDateTime AND @ToDateTime AND");
+            }
+
+          
+
+            for (int i = 0; i < filterParams.Count; i++)
+            {
+                var param = filterParams[i];
+                bool isLast = (i == filterParams.Count - 1);
+
+                if (param.DataType.ToLower().Contains("udtt_"))
+                {
+                    var foreignKeyColumn = GetForeignKeyColumnName(sqlTable, param.ColumnName);
+                    sb.Append($"             T.{foreignKeyColumn} IN (SELECT [Id] FROM @{param.ColumnName})");
+                }
+                else
+                {
+                    if (referenceTableExists && param.ColumnName.ToLower().Equals("referencenumber"))
+                    {
+                        sb.Append($"             RT.{sqlTable.TableName}ReferenceNumber = @{param.ColumnName}");
+
+                    }
+                    else
+                    {
+                        sb.Append($"             T.{param.ColumnName} = @{param.ColumnName}");
+
+                    }
+                }
+
+                if (!isLast)
+                    sb.AppendLine(" AND");
+
+            }
+
+            sb.AppendLine("    )");
+            sb.AppendLine();
+            sb.AppendLine("    SELECT");
+            if (referenceTableExists)
+            {
+                sb.AppendLine("        RT.*,");
+                sb.AppendLine("        TR.TotalRows ");
+                sb.AppendLine($"    FROM CTE_{sqlTable.TableName} T");
+                sb.AppendLine($"        INNER JOIN [{sqlTable.Schema}].[{sqlTable.TableName}Reference] RT ON T.[{sqlTable.TableName}Id] = RT.[{sqlTable.TableName}ReferenceId]  ");
+                sb.AppendLine("    CROSS JOIN CTE_TotalRows TR");
+            }
+            else
+            {
+                sb.AppendLine("        T.*,");
+                sb.AppendLine("        TR.TotalRows");
+                sb.AppendLine($"    FROM CTE_{sqlTable.TableName} T");
+                sb.AppendLine("    CROSS JOIN CTE_TotalRows TR");
+            }
+
+            sb.AppendLine("        ORDER BY");
+            sb.AppendLine($"            CASE WHEN @SortDirection = 'ASC' THEN T.[CreateDT] END ASC,");
+            sb.AppendLine($"            CASE WHEN @SortDirection = 'DESC' THEN T.[CreateDT] END DESC");
+            sb.AppendLine("        OFFSET @PageSize * (@PageNumber - 1) ROWS");
+            sb.AppendLine("        FETCH NEXT @PageSize ROWS ONLY;");
+            sb.AppendLine("END");
+
+            return sb.ToString();
+        }
+
+
+        private string GetForeignKeyColumnName(SqlTable table, string parameterName)
+        {
+            // Simple heuristic: remove "Ids" suffix and check if a column with that name exists.
+            var baseName = parameterName.Replace("Ids", "", StringComparison.OrdinalIgnoreCase);
+            return table.Columns.Any(c => c.ColumnName.Equals(baseName + "Id", StringComparison.OrdinalIgnoreCase)) ? baseName + "Id" :
+                   table.Columns.FirstOrDefault(c => c.ColumnName.Equals(baseName, StringComparison.OrdinalIgnoreCase))?.ColumnName;
+            // You might need more sophisticated logic here based on your naming conventions.
+        }
+
+        private string SanitizeSortColumn(string sortColumn, SqlTable table)
+        {
+            // Basic sanitization to prevent SQL injection (can be improved)
+            if (string.IsNullOrEmpty(sortColumn))
+            {
+                return "CreateDT"; // Default
+            }
+            return table.Columns.Any(c => c.ColumnName.Equals(sortColumn, StringComparison.OrdinalIgnoreCase)) ? sortColumn : "CreateDT";
+        }
         private bool IsForeignKey(SqlColumn column, SqlTable table)
         {
             // Check if the column is part of a foreign key constraint (you'll need to adjust this based on how foreign keys are represented in your data)

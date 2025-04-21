@@ -3,8 +3,12 @@ using Apstory.Scaffold.Domain.Scaffold;
 using Apstory.Scaffold.Domain.Service;
 using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model.Config;
+using Apstory.Scaffold.Model.Sql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using static System.Runtime.InteropServices.Marshalling.IIUnknownCacheStrategy;
 
 namespace Apstory.Scaffold.App.Worker
 {
@@ -89,6 +93,7 @@ namespace Apstory.Scaffold.App.Worker
             }
             else
             {
+
                 var entities = regenArgs.Split(";");
                 foreach (var regenEntry in entities)
                 {
@@ -99,6 +104,7 @@ namespace Apstory.Scaffold.App.Worker
                         schema = argSplit[0];
                         entityName = argSplit[1];
                     }
+
 
                     if (string.IsNullOrWhiteSpace(entityName))
                     {
@@ -113,6 +119,14 @@ namespace Apstory.Scaffold.App.Worker
                             await RegenerateTable(tablePath);
                             await RegenerateTableStoredProcedures(tablePath);
                         }
+                    }
+                    if (entityName.EndsWith("FilterPaging", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var storedProcPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Stored Procedures", $"{entityName}.sql");
+
+                        // Handle the case where regenArgs ends with "FilterPaging"
+                        await GenerateSearchStoredProcedure(storedProcPath);
+                        return;
                     }
                     else
                     {
@@ -234,5 +248,140 @@ namespace Apstory.Scaffold.App.Worker
 
             Logger.LogInfo($"[DONE Stored Procedure] {storedProcedurePath}");
         }
+
+        /// <summary>
+        /// Regenerate  search stored procs, updating all the related csharp files
+        /// </summary>
+        /// <param name="searchStoredProcedurePath"></param>
+        /// <returns></returns>
+        private async Task GenerateSearchStoredProcedure(string parentSearchStoredProcedurePath)
+        {
+            Logger.LogInfo($"[Regenerating Search Procedures] {parentSearchStoredProcedurePath}");
+
+            try
+            {
+                var parentFileName = Path.GetFileNameWithoutExtension(parentSearchStoredProcedurePath);
+                string parentSqlProcDefinition = FileUtils.SafeReadAllText(parentSearchStoredProcedurePath);
+                var parentSqlStoredProcedureInfo = SqlProcedureParser.ParseSearchProc(parentSqlProcDefinition);
+
+                Logger.LogDebug($"Read [{parentFileName}]");
+
+                var executedProceduresWithParams = GetExecutedProceduresWithParams(parentSqlStoredProcedureInfo,parentSqlProcDefinition);
+
+                var tableNameMatch = Regex.Match(parentFileName, @"^(\w+)_FilterPaging$");
+                if (!tableNameMatch.Success)
+                {
+                    Logger.LogError($"Could not extract table name from parent search procedure file name: {parentFileName}");
+                    return;
+                }
+                var tableName = tableNameMatch.Groups[1].Value;
+                var directory = Directory.GetParent(Path.GetDirectoryName(parentSearchStoredProcedurePath));
+                var tablePath = Path.Combine(directory.FullName, "Tables", $"{tableName}.sql");
+                var sqlTableInfo = _sqlTableCachingService.GetCachedTable(tablePath);
+
+                if (sqlTableInfo == null)
+                {
+                    Logger.LogError($"Could not retrieve SqlTable information for: {tableName}");
+                    return;
+                }
+                foreach (var executedProcInfo in executedProceduresWithParams)
+                {
+                    var fullProcName = executedProcInfo.Item1;
+                    var parameters = executedProcInfo.Item2; // This is now List<Tuple<string, string>>
+                                                             //  var executedProcNameParts = fullProcName.Trim('[', ']').Split('.');
+                    var executedProcNameParts = fullProcName.Split('.').Select(part => part.Trim('[', ']')).ToArray();
+
+
+                    if (executedProcNameParts.Length == 2)
+                    {
+                        var executedProcSchema = executedProcNameParts[0];
+                        var executedProcBaseName = executedProcNameParts[1];
+
+                        if (executedProcSchema.Equals(sqlTableInfo.Schema, StringComparison.OrdinalIgnoreCase) &&
+                            executedProcBaseName.StartsWith($"{tableName}_FilterPaging_", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Create a new SqlStoredProcedure object
+                            var sqlSearchProcInfo = new SqlStoredProcedure
+                            {
+                                Schema = executedProcSchema,
+                                TableName = sqlTableInfo.TableName,
+                                StoredProcedureName = executedProcBaseName,
+                                Parameters = parameters
+                            };
+
+                            // Call the existing GenerateSearchProcCode method
+                            var results = await _sqlScriptFileScaffold.GenerateSearchProcCode(sqlTableInfo,parentSearchStoredProcedurePath, sqlSearchProcInfo);
+
+
+                        }
+                    }
+                }
+                    await _sqlModelScaffold.GenerateSearchProcCode(sqlTableInfo,parentSqlStoredProcedureInfo);
+
+
+                var repoResult = await _sqlDalRepositoryScaffold.GenerateSearchProcCode(parentSqlStoredProcedureInfo);
+                await _sqlDalRepositoryInterfaceScaffold.GenerateSearchProcCode(parentSqlStoredProcedureInfo);
+                var domainResult = await _sqlDomainServiceScaffold.GenerateSearchProcCode(parentSqlStoredProcedureInfo);
+                await _sqlDomainServiceInterfaceScaffold.GenerateSearchProcCode(parentSqlStoredProcedureInfo);
+                await _sqlForeignDomainServiceScaffold.GenerateSearchProcCode(sqlTableInfo, parentSqlStoredProcedureInfo);
+               await _sqlForeignDomainServiceInterfaceScaffold.GenerateSearchProcCode(sqlTableInfo, parentSqlStoredProcedureInfo);
+
+                if (repoResult == Model.Enum.ScaffoldResult.Created)
+                    await _sqlDalRepositoryServiceCollectionExtensionScaffold.GenerateCode(parentSqlStoredProcedureInfo);
+
+                if (domainResult == Model.Enum.ScaffoldResult.Created)
+                    await _sqlDomainServiceServiceCollectionExtensionScaffold.GenerateCode(parentSqlStoredProcedureInfo);
+               
+               
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Error Regenerating Search Procedures] {parentSearchStoredProcedurePath}, {ex.Message}");
+            }
+
+            Logger.LogInfo($"[DONE Regenerating Search Procedures] {parentSearchStoredProcedurePath}");
+        }
+        private static List<Tuple<string, List<SqlColumn>>> GetExecutedProceduresWithParams(SqlStoredProcedure parentSqlStoredProcedureInfo, string sqlProcedureDefinition)
+        {
+            List<Tuple<string, List<SqlColumn>>> executedProcedures = new List<Tuple<string, List<SqlColumn>>>();
+            string pattern = @"EXECUTE\s+(?:\[?(\w+)\]?\.)?\[?(\w+)\]?\s*([^;]*)";
+            Regex regex = new Regex(pattern, RegexOptions.IgnoreCase);
+            MatchCollection matches = regex.Matches(sqlProcedureDefinition);
+
+            foreach (Match match in matches)
+            {
+                if (match.Groups.Count >= 3)
+                {
+                    string schema = match.Groups[1].Value;
+                    string procName = match.Groups[2].Value;
+                    string fullProcName = string.IsNullOrEmpty(schema) ? $"[{procName}]" : $"[{schema}].[{procName}]";
+                    string parametersString = match.Groups[3].Value.Trim();
+                    List<SqlColumn> parameters = new List<SqlColumn>();
+
+                    if (!string.IsNullOrEmpty(parametersString))
+                    {
+                        string[] parameterList = parametersString.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (string parameter in parameterList)
+                        {
+                            string trimmedParam = parameter.Trim().TrimStart('@');
+
+                            SqlColumn paramDefinition = FindParameterDefinition(parentSqlStoredProcedureInfo.Parameters, trimmedParam);
+                            parameters.Add(paramDefinition);
+
+                        }
+                    }
+
+                    executedProcedures.Add(Tuple.Create(fullProcName, parameters));
+                }
+            }
+            return executedProcedures;
+        }
+
+        private static SqlColumn FindParameterDefinition(List<SqlColumn> parameters, string searchTerm)
+        {
+            return parameters.FirstOrDefault(p => p.ColumnName.Equals(searchTerm, StringComparison.OrdinalIgnoreCase));
+        }
+
+
     }
 }

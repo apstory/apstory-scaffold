@@ -44,6 +44,7 @@ class Program
             string overrideSqlProjectPath = configuration["sqlproject"];
             string overrideNamespace = configuration["namespace"];
             var regenerate = args.Contains("-regen");
+
             var clean = args.Contains("-clean");
             var sqlpush = args.Contains("-sqldestination");
 
