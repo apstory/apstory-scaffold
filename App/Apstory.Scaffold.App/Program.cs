@@ -28,7 +28,8 @@ class Program
                 { "-variant", "variant" },
                 { "-help", "help" },
                 { "-tsModel", "tsmodel" },
-                { "-ngSearchPage", "ngsearchpage" }
+                { "-ngSearchPage", "ngsearchpage" },
+                { "-tsdalfolder", "tsdalfolder" },
                 })
                 .Build();
 
@@ -44,6 +45,7 @@ class Program
                 Console.WriteLine("-clean                   : Deletes existing generated files.");
                 Console.WriteLine("-tsmodel                 : Typescript model to read structure from.");
                 Console.WriteLine("-ngsearchpage            : Location to generate angular search page to.");
+                Console.WriteLine("-tsdalfolder             : Location to generate typescript dal service to.");
 
                 return;
             }
@@ -54,6 +56,7 @@ class Program
             var clean = args.Contains("-clean");
             var sqlpush = args.Contains("-sqldestination");
             var ngSearchPage = args.Contains("-ngsearchpage");
+            var tsDalFolder = args.Contains("-tsdalfolder");
 
             int flags = 0;
             if (args.Contains("-regen")) flags = (flags << 1) | 1;
@@ -105,6 +108,7 @@ class Program
                     services.AddTransient<SqlForeignDomainServiceInterfaceScaffold>();
                     services.AddTransient<SqlDalRepositoryServiceCollectionExtensionScaffold>();
                     services.AddTransient<SqlDomainServiceServiceCollectionExtensionScaffold>();
+                    services.AddTransient<SqlLiteScaffold>();
 
                     if (clean)
                         services.AddHostedService<SqlScaffoldCleanupWorker>();
@@ -114,6 +118,8 @@ class Program
                         services.AddHostedService<SqlUpdateWorker>();
                     else if (ngSearchPage)
                         services.AddHostedService<TypescriptSearchPageWorker>();
+                    else if (tsDalFolder)
+                        services.AddHostedService<SqlLiteWorker>();
                     else
                         services.AddHostedService<SqlScaffoldWatcherWorker>();
                 })
