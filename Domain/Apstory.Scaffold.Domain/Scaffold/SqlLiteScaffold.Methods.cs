@@ -214,10 +214,11 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 {
                     var propertyName = key.Key;
                     var propertyType = key.Value;
+                    var property = tsModel.Properties.First(s => s.PropertyName == propertyName);
 
                     Console.WriteLine($"Process sqlite getByIds for table {tsModel.TSModelName}");
                     sb.AppendLine();
-                    sb.AppendLine($"  public async Get{tsModel.TSModelName}sBy{propertyName}IsSynced({propertyName.ToCamelCase()}: {propertyType}, isSynced: boolean | undefined) {{");
+                    sb.AppendLine($"  public async Get{tsModel.TSModelName}sBy{propertyName}IsSynced({propertyName.ToCamelCase()}: {property.PropertyType}, isSynced: boolean | undefined) {{");
                     sb.AppendLine($"    try {{");
                     sb.AppendLine($"      await this.OpenDB();");
                     sb.AppendLine($"      let result: DBSQLiteValues;");
@@ -254,10 +255,11 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 {
                     var propertyName = key.Key;
                     var propertyType = key.Value;
+                    var property = tsModel.Properties.First(s => s.PropertyName == propertyName);
 
                     Console.WriteLine("Process sqlite getCountByIds for table " + tsModel.TSModelName);
                     sb.AppendLine();
-                    sb.AppendLine($"  public async CountBy{propertyName}({propertyName.ToCamelCase()}: {propertyType}, isSynced: boolean) {{");
+                    sb.AppendLine($"  public async CountBy{propertyName}({propertyName.ToCamelCase()}: {property.PropertyType}, isSynced: boolean) {{");
                     sb.AppendLine($"    try {{");
                     sb.AppendLine($"      await this.OpenDB();");
                     sb.AppendLine($"      let result = await this.db.query('SELECT COUNT(*) as totalRows FROM {tsModel.TSModelName} WHERE {propertyName} = ? AND isSynced = ?', [{propertyName.ToCamelCase()}, Number(isSynced)]);");
