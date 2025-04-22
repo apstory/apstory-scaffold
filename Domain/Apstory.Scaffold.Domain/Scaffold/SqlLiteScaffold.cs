@@ -13,7 +13,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         public async Task<ScaffoldFileResult> GenerateCode(TSModel tsModel, string dalFolder)
         {
-            string fileName = $"{tsModel.TSModelName}-dal.service.ts";
+            string fileName = $"{tsModel.TSModelName.ToKebabCase()}-dal.service.ts";
 
             StringBuilder stringBuilder = new StringBuilder();
             GenerateHeader(stringBuilder, tsModel);
@@ -22,6 +22,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             GenerateSqliteAddReplace(stringBuilder, tsModel);
             GenerateSqliteGetById(stringBuilder, tsModel);
             GenerateSqliteGetAll(stringBuilder, tsModel);
+            GenerateSqliteGetAllUnsynced(stringBuilder, tsModel);
             GenerateSqliteCount(stringBuilder, tsModel);
 
             if (tsModel.ForeignKeys.Any())

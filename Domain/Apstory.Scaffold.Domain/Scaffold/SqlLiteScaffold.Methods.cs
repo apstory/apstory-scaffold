@@ -11,7 +11,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("import { Injectable } from '@angular/core';");
             sb.AppendLine("import { SQLiteService } from '../../storage/sqlite.service';");
             sb.AppendLine("import { BaseDalService } from './base-dal.service';");
-            sb.AppendLine($"import {{ {tsModel.TSModelName} }} from 'src/app/models/gen/{tsModel.TSModelName.ToLower()}';");
+            sb.AppendLine($"import {{ {tsModel.TSModelName} }} from 'src/app/models/gen/{tsModel.TSModelName.ToKebabCase()}';");
             sb.AppendLine("import { LoggerService } from '../../logger.service';");
             sb.AppendLine("import { DBSQLiteValues } from '@capacitor-community/sqlite';");
             sb.AppendLine();
@@ -22,7 +22,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("  constructor(sqliteService: SQLiteService, logger: LoggerService) { ");
             sb.AppendLine("    super(sqliteService, logger);");
             sb.AppendLine("  }");
-        
+
         }
 
         private void GenerateSqliteCreate(StringBuilder sb, TSModel tsModel)
@@ -61,9 +61,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine();
                 sb.AppendLine($"  public async AddReplace(entity: {tsModel.TSModelName}): Promise<boolean> {{");
                 sb.AppendLine($"    try {{");
-                sb.AppendLine($"      if (!entity.{tsModel.PrimaryKey.PropertyName}) {{");
-                sb.AppendLine($"        entity.{tsModel.PrimaryKey.PropertyName} = BaseDalService.GenerateUniqueGuid();");
-                sb.AppendLine($"      }}");
+
+
+                if (tsModel.PrimaryKey.PropertyType.Equals("string", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    sb.AppendLine($"      if (!entity.{tsModel.PrimaryKey.PropertyName}) {{");
+                    sb.AppendLine($"        entity.{tsModel.PrimaryKey.PropertyName} = BaseDalService.GenerateUniqueGuid();");
+                    sb.AppendLine($"      }}");
+                }
 
                 StringBuilder qMarks = new StringBuilder();
                 StringBuilder sbParams = new StringBuilder();
@@ -102,7 +107,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 Console.WriteLine("Process sqlite getById for table " + tsModel.TSModelName);
                 sb.AppendLine();
-                sb.AppendLine($"  public async Get{tsModel.TSModelName}By{tsModel.PrimaryKey.PropertyName.Replace(tsModel.TSModelName, "")}({tsModel.PrimaryKey.PropertyName.ToCamelCase()}: {tsModel.PrimaryKey.PropertyType}) {{");
+                sb.AppendLine($"  public async Get{tsModel.TSModelName}By{tsModel.PrimaryKey.PropertyName.Replace(tsModel.TSModelName, "").ToPascalCase()}({tsModel.PrimaryKey.PropertyName.ToCamelCase()}: {tsModel.PrimaryKey.PropertyType}) {{");
                 sb.AppendLine($"    try {{");
                 sb.AppendLine($"      await this.OpenDB();");
                 sb.AppendLine($"      let result = await this.db.query('SELECT * FROM {tsModel.TSModelName} WHERE {tsModel.PrimaryKey.PropertyName} = ?', [{tsModel.PrimaryKey.PropertyName.ToCamelCase()}]);");
@@ -135,6 +140,35 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine($"    try {{");
                 sb.AppendLine($"      await this.OpenDB();");
                 sb.AppendLine($"      let result = await this.db.query('SELECT * FROM {tsModel.TSModelName}');");
+
+                if (tsModel.Properties.Any(s => s.PropertyType.Equals("date", StringComparison.InvariantCultureIgnoreCase)))
+                    sb.AppendLine($"      this.ParseDates(result.values as Array<{tsModel.TSModelName}>);");
+
+                sb.AppendLine($"      return result.values as Array<{tsModel.TSModelName}>;");
+                sb.AppendLine($"    }} catch (error) {{");
+                sb.AppendLine($"      await this.handleError(error);");
+                sb.AppendLine($"      return undefined;");
+                sb.AppendLine($"    }}");
+                sb.AppendLine($"  }}");
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write(ex.Message);
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+        }
+
+        private void GenerateSqliteGetAllUnsynced(StringBuilder sb, TSModel tsModel)
+        {
+            try
+            {
+                Console.WriteLine($"Process sqlite get for table {tsModel.TSModelName}");
+                sb.AppendLine();
+                sb.AppendLine($"  public async GetUnsynced{tsModel.TSModelName}s() {{");
+                sb.AppendLine($"    try {{");
+                sb.AppendLine($"      await this.OpenDB();");
+                sb.AppendLine($"      let result = await this.db.query('SELECT * FROM {tsModel.TSModelName} WHERE IsSynced = 0');");
 
                 if (tsModel.Properties.Any(s => s.PropertyType.Equals("date", StringComparison.InvariantCultureIgnoreCase)))
                     sb.AppendLine($"      this.ParseDates(result.values as Array<{tsModel.TSModelName}>);");
@@ -218,7 +252,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
                     Console.WriteLine($"Process sqlite getByIds for table {tsModel.TSModelName}");
                     sb.AppendLine();
-                    sb.AppendLine($"  public async Get{tsModel.TSModelName}sBy{propertyName}IsSynced({propertyName.ToCamelCase()}: {property.PropertyType}, isSynced: boolean | undefined) {{");
+                    sb.AppendLine($"  public async Get{tsModel.TSModelName}sBy{propertyName.ToPascalCase()}IsSynced({propertyName.ToCamelCase()}: {property.PropertyType}, isSynced: boolean | undefined) {{");
                     sb.AppendLine($"    try {{");
                     sb.AppendLine($"      await this.OpenDB();");
                     sb.AppendLine($"      let result: DBSQLiteValues;");
@@ -259,7 +293,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
                     Console.WriteLine("Process sqlite getCountByIds for table " + tsModel.TSModelName);
                     sb.AppendLine();
-                    sb.AppendLine($"  public async CountBy{propertyName}({propertyName.ToCamelCase()}: {property.PropertyType}, isSynced: boolean) {{");
+                    sb.AppendLine($"  public async CountBy{propertyName.ToPascalCase()}({propertyName.ToCamelCase()}: {property.PropertyType}, isSynced: boolean) {{");
                     sb.AppendLine($"    try {{");
                     sb.AppendLine($"      await this.OpenDB();");
                     sb.AppendLine($"      let result = await this.db.query('SELECT COUNT(*) as totalRows FROM {tsModel.TSModelName} WHERE {propertyName} = ? AND isSynced = ?', [{propertyName.ToCamelCase()}, Number(isSynced)]);");
