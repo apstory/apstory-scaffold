@@ -210,57 +210,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             // Normalize and return the code as a string
             return compilationUnit.NormalizeWhitespace().ToFullString();
         }
-        //private string GenerateSearchProcCSharpModel(SqlTable sqlTable,SqlStoredProcedure sqlStoredProcedure)
-        //{
-
-        //    // Create a class declaration
-        //    var classDeclaration = SyntaxFactory.ClassDeclaration($"{sqlTable.TableName}Filter")
-        //                                        .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-        //                                                      SyntaxFactory.Token(SyntaxKind.PartialKeyword));
-
-
-
-        //    foreach (var param in sqlStoredProcedure.Parameters)
-        //    {
-        //        param.IsNullable = true;
-
-        //        var property = SyntaxFactory.PropertyDeclaration(
-        //                SyntaxFactory.ParseTypeName(param.ToCSharpTypeString()), param.ColumnName)
-        //            .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
-        //            .AddAccessorListAccessors(
-        //                SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-        //                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
-        //                SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
-        //                    .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
-
-
-
-        //        // Make property readonly if required
-        //        if (param.IsReadonly)
-        //        {
-        //            property = property.WithAccessorList(
-        //                SyntaxFactory.AccessorList(
-        //                    SyntaxFactory.SingletonList(
-        //                        SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-        //                            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))));
-        //        }
-
-        //        classDeclaration = classDeclaration.AddMembers(property);
-        //    }
-
-
-        //    // Wrap the class in the provided namespace
-        //    var namespaceDeclaration = SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(_config.Namespaces.ModelNamespace.ToSchemaString(sqlStoredProcedure.Schema)))
-        //        .AddMembers(classDeclaration);
-
-        //    // Create the syntax tree
-        //    var compilationUnit = SyntaxFactory.CompilationUnit()
-        //        .AddUsings(SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System")))
-        //        .AddMembers(namespaceDeclaration);
-
-        //    // Normalize and return the code as a string
-        //    return compilationUnit.NormalizeWhitespace().ToFullString();
-        //}
+    
         private string GenerateSearchProcCSharpModel(SqlTable sqlTable, SqlStoredProcedure sqlStoredProcedure)
         {
             var classDeclaration = SyntaxFactory.ClassDeclaration($"{sqlTable.TableName}Filter")
