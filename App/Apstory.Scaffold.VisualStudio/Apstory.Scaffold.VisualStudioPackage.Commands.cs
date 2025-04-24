@@ -95,6 +95,7 @@ namespace Apstory.Scaffold.VisualStudio
 
         private async void ExecuteToolbarCodeScaffoldAsync(object sender, EventArgs e)
         {
+            await this.LoadConfigAsync();
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (isScaffolding)
             {
@@ -232,6 +233,7 @@ namespace Apstory.Scaffold.VisualStudio
 
         private async void ExecuteContextMenuCodeScaffoldAsync(object sender, EventArgs e)
         {
+            await this.LoadConfigAsync();
             var solutionDirectory = GetSolutionDirectory();
             var selectedPaths = GetSelectedItemPaths();
 

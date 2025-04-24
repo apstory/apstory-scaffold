@@ -3,6 +3,7 @@ using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model;
 using Apstory.Scaffold.Model.Config;
 using Apstory.Scaffold.Model.Enum;
+using Apstory.Scaffold.Model.Hardcoded;
 using Apstory.Scaffold.Model.Sql;
 using System.Text.RegularExpressions;
 
@@ -19,12 +20,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             _lockingService = lockingService;
         }
 
-        public async Task<List<ScaffoldFileResult>> GenerateCode(SqlTable sqlTable)
+        public async Task<List<ScaffoldFileResult>> GenerateCode(SqlTable sqlTable, string variant)
         {
             string lockName = $"{sqlTable.Schema}.{sqlTable.TableName}";
+            bool generateMergeVariant = Variant.Merge.Equals(variant, StringComparison.OrdinalIgnoreCase);
 
             List<ScaffoldFileResult> results = new List<ScaffoldFileResult>();
-            results.Add(await WriteScriptToDisk(sqlTable, GenerateInsertUpdateProcedure(sqlTable)));
+            results.Add(await WriteScriptToDisk(sqlTable, GenerateInsertUpdateProcedure(sqlTable, generateMergeVariant)));
             results.Add(await WriteScriptToDisk(sqlTable, GenerateDelHrdProcedure(sqlTable)));
             results.Add(await WriteScriptToDisk(sqlTable, GenerateDelSftProcedure(sqlTable)));
             results.Add(await WriteScriptToDisk(sqlTable, GenerateGetByIdProcedure(sqlTable)));
@@ -43,12 +45,19 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     results.Add(await WriteScriptToDisk(sqlTable, script));
                 }
             }
-
+            
             var typesDirectory = Path.Combine(_config.Directories.DBDirectory, sqlTable.Schema, "User Defined Types");
+            var udttTinyIntsPath = Path.Combine(typesDirectory, "udtt_TinyInts.sql");
+            if (!File.Exists(udttTinyIntsPath))
+            {
+                FileUtils.WriteTextAndDirectory(udttTinyIntsPath, $"CREATE TYPE [{sqlTable.Schema}].[udtt_TinyInts] AS TABLE ([Id] TINYINT NULL);");
+                results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttTinyIntsPath));
+            }
+
             var udttIntsPath = Path.Combine(typesDirectory, "udtt_Ints.sql");
             if (!File.Exists(udttIntsPath))
             {
-                FileUtils.WriteTextAndDirectory(udttIntsPath, "CREATE TYPE [dbo].[udtt_Ints] AS TABLE ([Id] INT NULL);");
+                FileUtils.WriteTextAndDirectory(udttIntsPath, $"CREATE TYPE [{sqlTable.Schema}].[udtt_Ints] AS TABLE ([Id] INT NULL);");
                 results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttIntsPath));
 
             }
@@ -56,7 +65,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var udttUniqueIdentifiersPath = Path.Combine(typesDirectory, "udtt_Uniqueidentifiers.sql");
             if (!File.Exists(udttUniqueIdentifiersPath))
             {
-                FileUtils.WriteTextAndDirectory(udttUniqueIdentifiersPath, "CREATE TYPE [dbo].[udtt_Uniqueidentifiers] AS TABLE ([Id] UNIQUEIDENTIFIER NULL);");
+                FileUtils.WriteTextAndDirectory(udttUniqueIdentifiersPath, $"CREATE TYPE [{sqlTable.Schema}].[udtt_Uniqueidentifiers] AS TABLE ([Id] UNIQUEIDENTIFIER NULL);");
                 results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttUniqueIdentifiersPath));
             }
 

@@ -4,6 +4,7 @@ using Apstory.Scaffold.Domain.Service;
 using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model.Config;
 using Apstory.Scaffold.Model.Sql;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.Collections.Concurrent;
 
@@ -14,6 +15,7 @@ namespace Apstory.Scaffold.App.Worker
         private static readonly ConcurrentDictionary<string, CancellationTokenSource> _debounceCancellations = new ConcurrentDictionary<string, CancellationTokenSource>();
         private static readonly TimeSpan _debounceTime = TimeSpan.FromMilliseconds(150);
 
+        private readonly IConfiguration _configuration;
         private readonly CSharpConfig _csharpConfig;
         private readonly SqlTableCachingService _sqlTableCachingService;
         private readonly SqlDalRepositoryScaffold _sqlDalRepositoryScaffold;
@@ -31,20 +33,23 @@ namespace Apstory.Scaffold.App.Worker
         private Dictionary<string, FileSystemWatcher> tableWatcher = new();
         private Dictionary<string, FileSystemWatcher> storedProcecdureWatcher = new();
 
-        public SqlScaffoldWatcherWorker(CSharpConfig csharpConfig,
-                                 SqlTableCachingService sqlTableCachingService,
-                                 SqlDalRepositoryScaffold sqlDalRepositoryScaffold,
-                                 SqlScriptFileScaffold sqlScriptFileScaffold,
-                                 SqlProjectScaffold sqlProjectScaffold,
-                                 SqlModelScaffold sqlModelScaffold,
-                                 SqlDalRepositoryInterfaceScaffold sqlDalRepositoryInterfaceScaffold,
-                                 SqlDomainServiceScaffold sqlDomainServiceScaffold,
-                                 SqlDomainServiceInterfaceScaffold sqlDomainServiceInterfaceScaffold,
-                                 SqlForeignDomainServiceScaffold sqlForeignDomainServiceScaffold,
-                                 SqlForeignDomainServiceInterfaceScaffold sqlForeignDomainServiceInterfaceScaffold,
-                                 SqlDalRepositoryServiceCollectionExtensionScaffold sqlDalRepositoryServiceCollectionExtensionScaffold,
-                                 SqlDomainServiceServiceCollectionExtensionScaffold sqlDomainServiceServiceCollectionExtensionScaffold)
+
+        public SqlScaffoldWatcherWorker(IConfiguration configuration,
+                                        CSharpConfig csharpConfig,
+                                        SqlTableCachingService sqlTableCachingService,
+                                        SqlDalRepositoryScaffold sqlDalRepositoryScaffold,
+                                        SqlScriptFileScaffold sqlScriptFileScaffold,
+                                        SqlProjectScaffold sqlProjectScaffold,
+                                        SqlModelScaffold sqlModelScaffold,
+                                        SqlDalRepositoryInterfaceScaffold sqlDalRepositoryInterfaceScaffold,
+                                        SqlDomainServiceScaffold sqlDomainServiceScaffold,
+                                        SqlDomainServiceInterfaceScaffold sqlDomainServiceInterfaceScaffold,
+                                        SqlForeignDomainServiceScaffold sqlForeignDomainServiceScaffold,
+                                        SqlForeignDomainServiceInterfaceScaffold sqlForeignDomainServiceInterfaceScaffold,
+                                        SqlDalRepositoryServiceCollectionExtensionScaffold sqlDalRepositoryServiceCollectionExtensionScaffold,
+                                        SqlDomainServiceServiceCollectionExtensionScaffold sqlDomainServiceServiceCollectionExtensionScaffold)
         {
+            _configuration = configuration;
             _csharpConfig = csharpConfig;
             _sqlTableCachingService = sqlTableCachingService;
             _sqlDalRepositoryScaffold = sqlDalRepositoryScaffold;
@@ -254,7 +259,7 @@ namespace Apstory.Scaffold.App.Worker
                     var tableInfo = _sqlTableCachingService.GetLatestTableAndCache(e.FullPath);
 
                     await _sqlModelScaffold.GenerateCode(tableInfo);
-                    var scriptResults = await _sqlScriptFileScaffold.GenerateCode(tableInfo);
+                    var scriptResults = await _sqlScriptFileScaffold.GenerateCode(tableInfo, _configuration["variant"]);
 
                     //Add any newly created files into the sqlproj
                     var newScripts = scriptResults.Where(s => s.ScaffoldResult == Model.Enum.ScaffoldResult.Created).ToList();
@@ -284,6 +289,6 @@ namespace Apstory.Scaffold.App.Worker
             Logger.LogInfo($"[DONE Table] {e.FullPath}");
         }
 
-        
+
     }
 }

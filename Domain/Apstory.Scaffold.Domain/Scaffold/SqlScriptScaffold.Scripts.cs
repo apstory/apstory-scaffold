@@ -9,21 +9,20 @@ namespace Apstory.Scaffold.Domain.Scaffold
     {
         private string[] skipDTDefaults = new string[] { "CreateDT", "UpdateDT" };
 
-
-        public string GenerateInsertUpdateProcedure(SqlTable table)
+        public string GenerateInsertUpdateProcedure(SqlTable table, bool generateMergeVariant)
         {
             var sb = new StringBuilder();
 
             var primaryColumn = GetPrimaryColumn(table);
 
             // Start the SQL procedure creation
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_InsUpd] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_InsUpd] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine("-- Description    : Insert Update " + table.TableName);
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_InsUpd]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_InsUpd]");
 
             // Add parameters for each column
             sb.Append("  (");
@@ -48,63 +47,102 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("    IF @InitialTransCount = 0 BEGIN TRANSACTION @TranName");
             sb.AppendLine();
 
-            sb.AppendLine($"    IF @{primaryColumn.ColumnName} IS NULL");
-            sb.AppendLine("    BEGIN");
-            if (!primaryColumn.DataType.Equals("UNIQUEIDENTIFIER", StringComparison.OrdinalIgnoreCase))
+            var primaryIsUniqueIdentifier = primaryColumn.DataType.Equals("UNIQUEIDENTIFIER", StringComparison.OrdinalIgnoreCase);
+            if (generateMergeVariant && primaryIsUniqueIdentifier)
             {
-                sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
-                sb.Append("        (");
+                sb.AppendLine($"    IF (@{primaryColumn.ColumnName} IS NULL)");
+                sb.AppendLine($"    BEGIN");
+                sb.AppendLine($"        SET @{primaryColumn.ColumnName} = NEWID()");
+                sb.AppendLine($"    END");
+                sb.AppendLine();
+
+                sb.AppendLine($"    MERGE INTO [{table.Schema}].[{table.TableName}] AS target");
+                sb.AppendLine($"    USING (SELECT @{primaryColumn.ColumnName} AS {primaryColumn.ColumnName}) AS source");
+                sb.AppendLine($"    ON target.{primaryColumn.ColumnName} = source.{primaryColumn.ColumnName}");
+                sb.AppendLine($"    WHEN MATCHED THEN");
+                sb.AppendLine($"        UPDATE SET ");
 
                 foreach (var column in sortedColumnsNoDtNoPK)
+                    sb.AppendLine($"            [{column.ColumnName}]=@{column.ColumnName},");
+
+                sb.AppendLine($"            [UpdateDT]=GETDATE()");
+                sb.AppendLine($"    WHEN NOT MATCHED THEN");
+                sb.Append($"        INSERT (");
+
+                foreach (var column in sortedColumnsNoDt)
                     sb.Append($"[{column.ColumnName}],");
+
                 sb.Length--;
                 sb.AppendLine(")");
-                sb.AppendLine("      VALUES");
-                sb.Append("        (");
+                sb.Append("        VALUES (");
 
-                foreach (var column in sortedColumnsNoDtNoPK)
+                foreach (var column in sortedColumnsNoDt)
                     sb.Append($"@{column.ColumnName},");
+
                 sb.Length--;
                 sb.AppendLine(");");
-
-                sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = SCOPE_IDENTITY();");
+                sb.AppendLine();
+                sb.AppendLine($"    SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE {primaryColumn.ColumnName} = @{primaryColumn.ColumnName}");
             }
             else
             {
-                sb.AppendLine($"      SET @{primaryColumn.ColumnName} = NEWID();");
-                sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
-                sb.Append("        (");
+                sb.AppendLine($"    IF @{primaryColumn.ColumnName} IS NULL");
+                sb.AppendLine("    BEGIN");
+                if (!primaryIsUniqueIdentifier)
+                {
+                    sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
+                    sb.Append("        (");
 
-                foreach (var column in sortedColumnsNoDt)
-                    sb.Append($"[{column.ColumnName}],");
-                sb.Length--;
-                sb.AppendLine(")");
-                sb.AppendLine("      VALUES");
-                sb.Append("        (");
+                    foreach (var column in sortedColumnsNoDtNoPK)
+                        sb.Append($"[{column.ColumnName}],");
+                    sb.Length--;
+                    sb.AppendLine(")");
+                    sb.AppendLine("      VALUES");
+                    sb.Append("        (");
 
-                foreach (var column in sortedColumnsNoDt)
-                    sb.Append($"@{column.ColumnName},");
-                sb.Length--;
-                sb.AppendLine(");");
+                    foreach (var column in sortedColumnsNoDtNoPK)
+                        sb.Append($"@{column.ColumnName},");
+                    sb.Length--;
+                    sb.AppendLine(");");
+
+                    sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = SCOPE_IDENTITY();");
+                }
+                else
+                {
+                    sb.AppendLine($"      SET @{primaryColumn.ColumnName} = NEWID();");
+                    sb.AppendLine($"      INSERT INTO [{table.Schema}].[{table.TableName}]");
+                    sb.Append("        (");
+
+                    foreach (var column in sortedColumnsNoDt)
+                        sb.Append($"[{column.ColumnName}],");
+                    sb.Length--;
+                    sb.AppendLine(")");
+                    sb.AppendLine("      VALUES");
+                    sb.Append("        (");
+
+                    foreach (var column in sortedColumnsNoDt)
+                        sb.Append($"@{column.ColumnName},");
+                    sb.Length--;
+                    sb.AppendLine(");");
+
+                    sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName};");
+                }
+                sb.AppendLine("    END");
+                sb.AppendLine("  ELSE");
+                sb.AppendLine("    BEGIN");
+                sb.AppendLine($"      UPDATE [{table.Schema}].[{table.TableName}]");
+                sb.Append("        SET ");
+
+                foreach (var column in sortedColumnsNoDtNoPK)
+                    sb.Append($"[{column.ColumnName}]=@{column.ColumnName},");
+
+                sb.Append($"[UpdateDT]=GETDATE()");
+                sb.AppendLine("");
+                sb.AppendLine($"        WHERE ([{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName});");
 
                 sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName};");
+                sb.AppendLine("    END");
             }
-
-            sb.AppendLine("    END");
-            sb.AppendLine("  ELSE");
-            sb.AppendLine("    BEGIN");
-            sb.AppendLine($"      UPDATE [{table.Schema}].[{table.TableName}]");
-            sb.Append("        SET ");
-
-            foreach (var column in sortedColumnsNoDtNoPK)
-                sb.Append($"[{column.ColumnName}]=@{column.ColumnName},");
-
-            sb.Append($"[UpdateDT]=GETDATE()");
-            sb.AppendLine("");
-            sb.AppendLine($"        WHERE ([{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName});");
-
-            sb.AppendLine($"      SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryColumn.ColumnName}] = @{primaryColumn.ColumnName};");
-            sb.AppendLine("    END");
 
             sb.AppendLine();
             sb.AppendLine("    IF @@ERROR <> 0 BEGIN GOTO errorMsg_section END");
@@ -141,18 +179,18 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var sb = new StringBuilder();
 
             // Start the SQL procedure creation
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetById] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetById] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine("-- Description    : Select By Id " + table.TableName);
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetById]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetById]");
 
             var primaryKeyColumn = GetPrimaryColumn(table);
 
             // Add parameters
-            sb.AppendLine($"  (@{primaryKeyColumn.ColumnName} {primaryKeyColumn.DataType.ToLower()}, @IsActive bit=NULL)");
+            sb.AppendLine($"  (@{primaryKeyColumn.ColumnName} {primaryKeyColumn.DataType}{(string.IsNullOrEmpty(primaryKeyColumn.DataTypeLength) ? "" : $"({primaryKeyColumn.DataTypeLength})")}, @IsActive bit=NULL)");
 
             sb.AppendLine("AS");
             sb.AppendLine("BEGIN");
@@ -185,14 +223,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             var sb = new StringBuilder();
 
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetBy{primaryKey.ColumnName}s] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetBy{primaryKey.ColumnName}s] ******/");
 
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine($"-- Description    : Select By Id {table.TableName}");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetBy{primaryKey.ColumnName}s]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBy{primaryKey.ColumnName}s]");
 
             // Generate procedure parameters for the UDTT
             if (primaryKey.DataType == "INT")
@@ -229,13 +267,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var sb = new StringBuilder();
 
             // Start the SQL procedure creation
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetByIds] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetByIds] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine("-- Description    : Select By Ids " + table.TableName);
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetByIds]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetByIds]");
 
             // Add parameters dynamically based on the foreign key columns
             sb.Append("  (");
@@ -245,7 +283,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             // Loop through only foreign key columns
             foreach (var column in foreignColumns)
-                sb.Append($"@{column.ColumnName} {column.DataType.ToLower()}=NULL,");
+                sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}=NULL,");
 
             sb.Append($"@IsActive bit=NULL,");
             sb.Append($"@SortDirection varchar(5)='ASC'");
@@ -301,13 +339,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var primaryColumn = GetPrimaryColumn(table);
 
             // Start the SQL procedure creation
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetByIdsPaging] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetByIdsPaging] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine("-- Description    : Select By Ids Paging " + table.TableName);
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
 
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetByIdsPaging]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetByIdsPaging]");
 
             var sortedColumns = GetSortedColumnsByNullableDefaultType(table);
             var foreignColumns = sortedColumns.Where(col => IsForeignKey(col, table)).ToList();
@@ -419,16 +457,16 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 var column = table.Columns.First(s => s.ColumnName == index.Column);
                 var sb = new StringBuilder();
 
-                sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_GetBy{index.Column}] ******/");
+                sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetBy{index.Column}] ******/");
                 sb.AppendLine("-- ===================================================================");
                 sb.AppendLine($"-- Description    : Select By {index.Column} {table.TableName}");
                 sb.AppendLine("-- ===================================================================");
                 sb.AppendLine();
 
-                sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_GetBy{index.Column}]");
+                sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBy{index.Column}]");
 
                 // Add parameter based on the indexed column
-                sb.AppendLine($"  (@{column.ColumnName} {column.DataType.ToLower()}{(column.DataTypeLength is not null ? $"({column.DataTypeLength})" : "")}=NULL)");
+                sb.AppendLine($"  (@{column.ColumnName} {column.DataType.ToLower()}{(!string.IsNullOrEmpty(column.DataTypeLength) ? $"({column.DataTypeLength})" : "")})");
 
                 sb.AppendLine("AS");
                 sb.AppendLine("BEGIN");
@@ -460,12 +498,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 throw new Exception("Table does not have a primary key constraint.");
             }
 
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_DelHrd] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_DelHrd] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine($"-- Description    : Hard Delete {table.TableName}");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_DelHrd]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_DelHrd]");
             sb.AppendLine($"  (@{primaryKeyConstraint.Column} {primaryKey.DataType.ToLower()}, @RetMsg NVARCHAR(MAX) OUTPUT)");
             sb.AppendLine("AS");
             sb.AppendLine("BEGIN");
@@ -517,12 +555,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 throw new Exception("Table does not have a primary key constraint.");
             }
 
-            sb.AppendLine($"/****** Object:  StoredProcedure [dbo].[zgen_{table.TableName}_DelSft] ******/");
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_DelSft] ******/");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine($"-- Description    : Soft Delete {table.TableName}");
             sb.AppendLine("-- ===================================================================");
             sb.AppendLine();
-            sb.AppendLine($"CREATE   PROCEDURE [dbo].[zgen_{table.TableName}_DelSft]");
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_DelSft]");
             sb.AppendLine($"  (@{primaryKeyConstraint.Column} {primaryKey.DataType.ToLower()}, @RetMsg NVARCHAR(MAX) OUTPUT)");
             sb.AppendLine("AS");
             sb.AppendLine("BEGIN");

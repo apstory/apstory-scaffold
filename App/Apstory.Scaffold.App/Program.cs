@@ -6,6 +6,7 @@ using Apstory.Scaffold.Model.Config;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
 class Program
@@ -24,7 +25,11 @@ class Program
                 { "-clean", "clean" },
                 { "-sqlpush", "sqlpush" },
                 { "-sqldestination", "sqldestination" },
+                { "-variant", "variant" },
                 { "-help", "help" },
+                { "-tsModel", "tsmodel" },
+                { "-ngSearchPage", "ngsearchpage" },
+                { "-tsdalfolder", "tsdalfolder" },
                 })
                 .Build();
 
@@ -36,7 +41,11 @@ class Program
                 Console.WriteLine("-regen <params>          : Executes immediate regeneration of files. Will regenerate all found schemas when no additional information supplied. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to regenerate. Can send multiple entities with ;");
                 Console.WriteLine("-sqlpush <params>        : Pushes changes to database. Can leave empty to detect git changes. Specify a table 'dbo.tablename' (Limited Functionality), or a procedure 'dbo.zgen_procname' to push. Requires -sqldestination switch as well. Please note: No table updates are pushed, only the initial creates can be pushed. Can send multiple entities with ;");
                 Console.WriteLine("-sqldestination <params> : Pushes changes to database. This is the connection string of the database.");
+                Console.WriteLine("-variant <params>        : Possible variants: 'merge' - merge will cause InsUpd procs to be generated with a merge statement that allows users to insert their own id on uniqueidentifiers");
                 Console.WriteLine("-clean                   : Deletes existing generated files.");
+                Console.WriteLine("-tsmodel                 : Typescript model to read structure from.");
+                Console.WriteLine("-ngsearchpage            : Location to generate angular search page to.");
+                Console.WriteLine("-tsdalfolder             : Location to generate typescript dal service to.");
 
                 return;
             }
@@ -47,6 +56,8 @@ class Program
 
             var clean = args.Contains("-clean");
             var sqlpush = args.Contains("-sqldestination");
+            var ngSearchPage = args.Contains("-ngsearchpage");
+            var tsDalFolder = args.Contains("-tsdalfolder");
 
             int flags = 0;
             if (args.Contains("-regen")) flags = (flags << 1) | 1;
@@ -75,6 +86,10 @@ class Program
                 {
                     config.AddConfiguration(configuration); // Merge command-line args into DI config
                 })
+                .ConfigureLogging(logging =>
+                {
+                    logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.None); // Suppress hosting logs
+                })
                 .ConfigureServices((context, services) =>
                 {
                     services.AddMemoryCache();
@@ -94,6 +109,7 @@ class Program
                     services.AddTransient<SqlForeignDomainServiceInterfaceScaffold>();
                     services.AddTransient<SqlDalRepositoryServiceCollectionExtensionScaffold>();
                     services.AddTransient<SqlDomainServiceServiceCollectionExtensionScaffold>();
+                    services.AddTransient<SqlLiteScaffold>();
 
                     if (clean)
                         services.AddHostedService<SqlScaffoldCleanupWorker>();
@@ -101,6 +117,10 @@ class Program
                         services.AddHostedService<SqlScaffoldRegenerationWorker>();
                     else if (sqlpush)
                         services.AddHostedService<SqlUpdateWorker>();
+                    else if (ngSearchPage)
+                        services.AddHostedService<TypescriptSearchPageWorker>();
+                    else if (tsDalFolder)
+                        services.AddHostedService<SqlLiteWorker>();
                     else
                         services.AddHostedService<SqlScaffoldWatcherWorker>();
                 })

@@ -7,7 +7,6 @@ using Microsoft.Data.SqlClient;
 using Dapper;
 using System.Diagnostics;
 using Apstory.Scaffold.Domain.Parser;
-using static System.Runtime.InteropServices.Marshalling.IIUnknownCacheStrategy;
 
 namespace Apstory.Scaffold.App.Worker
 {
@@ -43,9 +42,8 @@ namespace Apstory.Scaffold.App.Worker
                 Logger.LogInfo($"No -sqlPush parameter, checking git status");
                 var gitLogs = await ExecuteGitStatus();
 
-                var modifiedEntries = gitLogs.Where(s => s.StartsWith("\tmodified:") || s.StartsWith("\tnew file:"))
-                                             .Select(s => s.Replace("\tmodified:", string.Empty).Replace("\tnew file:", string.Empty).Trim());
-                var validSqlEntries = modifiedEntries.Where(s => s.EndsWith(".sql", StringComparison.OrdinalIgnoreCase)).ToList();
+                var validSqlEntries = gitLogs.Where(s => !string.IsNullOrEmpty(s) && s.Trim().EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                                             .Select(s => s.Replace("\tmodified:", string.Empty).Replace("\tnew file:", string.Empty).Trim()).ToList();
 
                 if (!validSqlEntries.Any())
                 {
@@ -56,7 +54,9 @@ namespace Apstory.Scaffold.App.Worker
 
                 Logger.LogInfo($"Found {validSqlEntries.Count()} modified sql files");
                 List<string> entityArgs = new List<string>();
-                foreach (var sqlEntry in validSqlEntries)
+
+                var tablesFirstEntries = validSqlEntries.OrderByDescending(s => s.Contains("/Tables/") || s.Contains("\\Tables\\")).ToList();
+                foreach (var sqlEntry in tablesFirstEntries)
                 {
                     var schema = sqlEntry.GetSchemaFromPath();
                     var fileName = Path.GetFileName(sqlEntry).Replace(".sql", string.Empty);
