@@ -131,6 +131,68 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             return scaffoldingResult;
         }
+        public async Task<ScaffoldResult> GenerateSearchProcCode(SqlTable sqlTable, SqlStoredProcedure sqlStoredProcedure)
+        {
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
+         
+
+            //Do not generate if we dont have any FK constraints
+            var foreignConstraints = sqlTable.Constraints.Where(s => s.ConstraintType == Model.Enum.ConstraintType.ForeignKey);
+            if (!foreignConstraints.Any())
+                return ScaffoldResult.Skipped;
+
+            var scaffoldingResult = ScaffoldResult.Updated;
+            var domainServicePath = GetFilePath(sqlStoredProcedure);
+            var existingFileContent = string.Empty;
+
+            try
+            {
+                await _lockingService.AcquireLockAsync(domainServicePath);
+
+                SyntaxNode syntaxNode;
+                if (!File.Exists(domainServicePath))
+                {
+                    Logger.LogWarn($"[File does not exist] Creating {domainServicePath}");
+                    syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
+                    scaffoldingResult = ScaffoldResult.Created;
+                }
+                else
+                {
+                    existingFileContent = FileUtils.SafeReadAllText(domainServicePath);
+                    var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+                    syntaxNode = syntaxTree.GetRoot();
+                }
+
+                syntaxNode = UpdateAndGenerateSearchProcPartialClass(syntaxNode, sqlTable, sqlStoredProcedure);
+
+                var updatedFileContent = syntaxNode.NormalizeWhitespace().ToString();
+                if (!existingFileContent.Equals(updatedFileContent))
+                {
+                    FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
+                    Logger.LogSuccess($"[Created Service] {domainServicePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                }
+                else
+                {
+#if DEBUGFORCESCAFFOLD
+                    FileUtils.WriteTextAndDirectory(domainServicePath, updatedFileContent);
+                    Logger.LogSuccess($"[Force Created Service] {domainServicePath} for method {sqlStoredProcedure.StoredProcedureName}");
+#else
+                    Logger.LogSkipped($"[Skipped Service] Method {sqlStoredProcedure.StoredProcedureName}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
+#endif
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Foreign Service] {ex.Message}");
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(domainServicePath);
+            }
+
+            return scaffoldingResult;
+        }
 
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)
         {
@@ -245,6 +307,49 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var updatedRoot = syntaxNode.ReplaceNode(newClassDeclaration, updatedClassDeclaration);
             return updatedRoot;
         }
+        public SyntaxNode UpdateAndGenerateSearchProcPartialClass(SyntaxNode root, SqlTable sqlTable, SqlStoredProcedure sqlStoredProcedure)
+        {
+            var className = GetClassName(sqlStoredProcedure);
+
+            var classDeclaration = root.DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault(c => c.Identifier.Text == className);
+
+            if (classDeclaration == null)
+                throw new Exception($"Class {className} not found in the provided code.");
+
+            // Generate the new stored procedure method
+            var updatedMethod = SyntaxFactory.ParseMemberDeclaration(
+                GenerateSearchStoredProcedureMethod(sqlTable, sqlStoredProcedure)
+            ) as MethodDeclarationSyntax;
+
+            // Remove fields, constructor, protected methods — only keep public methods
+            var publicMethods = classDeclaration.Members.OfType<MethodDeclarationSyntax>()
+                .Where(m => m.Modifiers.Any(SyntaxKind.PublicKeyword))
+                .ToList();
+
+            // Replace existing method if it exists
+            var existingMethodIndex = publicMethods.FindIndex(s => s.Identifier.Text == updatedMethod.Identifier.Text);
+            if (existingMethodIndex >= 0)
+                publicMethods[existingMethodIndex] = updatedMethod;
+            else
+                publicMethods.Add(updatedMethod);
+
+            // Sort public methods (optional)
+            publicMethods = publicMethods.OrderBy(m => m.Identifier.Text).ToList();
+
+            // Build new class with only the updated public methods
+            var syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
+            var newClassDeclaration = syntaxNode.DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault(c => c.Identifier.Text == className);
+
+            var updatedClassDeclaration = newClassDeclaration
+                .WithMembers(SyntaxFactory.List<MemberDeclarationSyntax>(publicMethods));
+
+            var updatedRoot = syntaxNode.ReplaceNode(newClassDeclaration, updatedClassDeclaration);
+            return updatedRoot;
+        }
 
         private MethodDeclarationSyntax GenerateAppendMethod(SqlTable sqlTable, SqlConstraint constraint)
         {
@@ -327,6 +432,45 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
 
             return sb.ToString();
+        }
+        private string GenerateSearchStoredProcedureMethod(SqlTable sqlTable, SqlStoredProcedure sqlStoredProcedure)
+        {
+            var sb = new StringBuilder();
+            var methodName = $"Get{sqlStoredProcedure.TableName}ByFilterPagingIncludeForeignKeys";
+
+            string filterModelClassName = $"{sqlStoredProcedure.TableName}Filter";
+
+            string filterModelName = filterModelClassName[0].ToString().ToLower() + filterModelClassName.Substring(1);
+
+
+
+            sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure.Schema)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+
+
+
+            sb.Append($"{sqlStoredProcedure.TableName}Filter {filterModelName}");
+
+
+
+            sb.AppendLine(")");
+
+                sb.AppendLine("{");
+
+                sb.Append($"    var ret{sqlStoredProcedure.TableName}s = await _repo.{methodName}(");
+               sb.Append($"{filterModelName}");
+
+            sb.AppendLine($");");
+
+                foreach (var constraint in sqlTable.Constraints.Where(s => s.ConstraintType == ConstraintType.ForeignKey))
+                    sb.AppendLine($"    await Append{constraint.RefTable}(ret{sqlStoredProcedure.TableName}s);");
+
+                sb.AppendLine($"    return ret{sqlStoredProcedure.TableName}s;");
+                sb.AppendLine("}");
+
+                return sb.ToString();
+            
+            
+
         }
 
         private string GetMethodNameWithFK(SqlStoredProcedure sqlStoredProcedure)

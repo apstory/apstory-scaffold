@@ -114,6 +114,59 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             return scaffoldingResult;
         }
+        public async Task<ScaffoldResult> GenerateSearchProcCode(SqlStoredProcedure sqlStoredProcedure)
+        {
+            var scaffoldingResult = ScaffoldResult.Updated;
+            var methodBody = GenerateSearchProcInterfaceMethod(sqlStoredProcedure);
+            var dalInterfacePath = GetFilePath(sqlStoredProcedure);
+            var existingFileContent = string.Empty;
+
+            try
+            {
+                await _lockingService.AcquireLockAsync(dalInterfacePath);
+
+                SyntaxNode syntaxNode;
+                if (!File.Exists(dalInterfacePath))
+                {
+                    scaffoldingResult = ScaffoldResult.Created;
+                    Logger.LogWarn($"[File does not exist] Creating {dalInterfacePath}");
+                    syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
+                }
+                else
+                {
+                    existingFileContent = FileUtils.SafeReadAllText(dalInterfacePath);
+                    var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+                    syntaxNode = syntaxTree.GetRoot();
+                }
+
+                var updatedFileContent = CreateOrUpdateMethod(syntaxNode, sqlStoredProcedure, methodBody);
+                if (!existingFileContent.Equals(updatedFileContent))
+                {
+                    FileUtils.WriteTextAndDirectory(dalInterfacePath, updatedFileContent);
+                    Logger.LogSuccess($"[Created Repository Interface] {dalInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                }
+                else
+                {
+#if DEBUGFORCESCAFFOLD
+                    FileUtils.WriteTextAndDirectory(dalInterfacePath, updatedFileContent);
+                    Logger.LogSuccess($"[Force Repository Interface] {dalInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
+#else
+                    Logger.LogSkipped($"[Skipped Repository] Method {sqlStoredProcedure.StoredProcedureName}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
+#endif
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Repository Interface] {ex.Message}");
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(dalInterfacePath);
+            }
+
+            return scaffoldingResult;
+        }
 
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)
         {
@@ -145,7 +198,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string CreateOrUpdateMethod(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)
         {
             var interfaceName = GetInterfaceName(sqlStoredProcedure);
-            var methodName = sqlStoredProcedure.GetMethodName();
+            var methodName = sqlStoredProcedure.StoredProcedureName.EndsWith("FilterPaging") ? $"Get{sqlStoredProcedure.TableName}ByFilterPaging" : sqlStoredProcedure.GetMethodName();
 
             var interfaceDeclaration = root.DescendantNodes()
                                            .OfType<InterfaceDeclarationSyntax>()
@@ -234,6 +287,23 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
             else
                 return $"Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()});";
+        }
+        private string GenerateSearchProcInterfaceMethod(SqlStoredProcedure sqlStoredProcedure)
+        {
+            var methodName =  $"Get{sqlStoredProcedure.TableName}ByFilterPaging";
+
+            string filterModelClassName = $"{sqlStoredProcedure.TableName}Filter";
+
+            string filterModelName = filterModelClassName[0].ToString().ToLower() + filterModelClassName.Substring(1);
+
+
+            var sb = new StringBuilder();
+            sb.Append($"Task<List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+            sb.Append($"{filterModelClassName} {filterModelName}");
+       
+            sb.AppendLine(");");
+           return sb.ToString();
+            
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)

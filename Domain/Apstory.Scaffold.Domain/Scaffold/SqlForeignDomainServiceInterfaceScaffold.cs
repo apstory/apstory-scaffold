@@ -128,6 +128,67 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             return scaffoldingResult;
         }
+        public async Task<ScaffoldResult> GenerateSearchProcCode(SqlTable sqlTable, SqlStoredProcedure sqlStoredProcedure)
+        {
+            var methodName = GetMethodNameWithFK(sqlStoredProcedure);
+     
+
+            //Do not generate if we dont have any FK constraints
+            var foreignConstraints = sqlTable.Constraints.Where(s => s.ConstraintType == Model.Enum.ConstraintType.ForeignKey);
+            if (!foreignConstraints.Any())
+                return ScaffoldResult.Skipped;
+
+            var scaffoldingResult = ScaffoldResult.Updated;
+            var methodBody = GenerateSearchProcInterfaceMethod(sqlStoredProcedure);
+            var domainInterfacePath = GetFilePath(sqlStoredProcedure);
+            var existingFileContent = string.Empty;
+
+            try
+            {
+                await _lockingService.AcquireLockAsync(domainInterfacePath);
+
+                SyntaxNode syntaxNode;
+                if (!File.Exists(domainInterfacePath))
+                {
+                    scaffoldingResult = ScaffoldResult.Created;
+                    Logger.LogWarn($"[File does not exist] Creating {domainInterfacePath}");
+                    syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
+                }
+                else
+                {
+                    existingFileContent = FileUtils.SafeReadAllText(domainInterfacePath);
+                    var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+                    syntaxNode = syntaxTree.GetRoot();
+                }
+
+                var updatedFileContent = CreateOrUpdateMethod(syntaxNode, sqlStoredProcedure, methodBody);
+                if (!existingFileContent.Equals(updatedFileContent))
+                {
+                    FileUtils.WriteTextAndDirectory(domainInterfacePath, updatedFileContent);
+                    Logger.LogSuccess($"[Created Foreign Service Interface] {domainInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                }
+                else
+                {
+#if DEBUGFORCESCAFFOLD
+                    FileUtils.WriteTextAndDirectory(domainInterfacePath, updatedFileContent);
+                    Logger.LogSuccess($"[Force Created Foreign Service Interface] {domainInterfacePath} for method {sqlStoredProcedure.StoredProcedureName}");
+#else
+                    Logger.LogSkipped($"[Skipped Service Interface] Method {sqlStoredProcedure.StoredProcedureName}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
+#endif
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Foreign Service Interface] {ex.Message}");
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(domainInterfacePath);
+            }
+
+            return scaffoldingResult;
+        }
 
         private string CreateOrUpdateMethod(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)
         {
@@ -243,6 +304,23 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
             else
                 return $"Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()});";
+        }
+        private string GenerateSearchProcInterfaceMethod(SqlStoredProcedure sqlStoredProcedure)
+        {
+            var methodName = $"Get{sqlStoredProcedure.TableName}ByFilterPagingIncludeForeignKeys";
+
+            string filterModelClassName = $"{sqlStoredProcedure.TableName}Filter";
+
+            string filterModelName = filterModelClassName[0].ToString().ToLower() + filterModelClassName.Substring(1);
+
+
+            var sb = new StringBuilder();
+            sb.Append($"Task<List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+            sb.Append($"{filterModelClassName} {filterModelName}");
+
+            sb.AppendLine(");");
+            return sb.ToString();
+         
         }
 
         private string GetMethodNameWithFK(SqlStoredProcedure sqlStoredProcedure)

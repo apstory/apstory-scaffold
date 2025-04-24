@@ -132,6 +132,77 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             return scaffoldingResult;
         }
+        public async Task<ScaffoldResult> GenerateSearchProcCode(SqlStoredProcedure sqlStoredProcedure)
+        {
+            var scaffoldingResult = ScaffoldResult.Updated;
+            var dalRepositoryPath = GetFilePath(sqlStoredProcedure);
+            var methodBody = GenerateSearchStoredProcedureMethod(sqlStoredProcedure);
+            var existingFileContent = string.Empty;
+
+            try
+            {
+                await _lockingService.AcquireLockAsync(dalRepositoryPath);
+
+                SyntaxNode syntaxNode;
+                if (!File.Exists(dalRepositoryPath))
+                {
+                    scaffoldingResult = ScaffoldResult.Created;
+                    Logger.LogWarn($"[File does not exist] Creating {dalRepositoryPath}");
+                    syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
+                }
+                else
+                {
+                    existingFileContent = FileUtils.SafeReadAllText(dalRepositoryPath);
+                    var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
+                    syntaxNode = syntaxTree.GetRoot();
+                }
+
+                var updatedFileContent = AddUpdateMethodCall(syntaxNode, sqlStoredProcedure, methodBody);
+                if (!existingFileContent.Equals(updatedFileContent))
+                {
+                    FileUtils.WriteTextAndDirectory(dalRepositoryPath, updatedFileContent);
+                    Logger.LogSuccess($"[Created Repository] {dalRepositoryPath} for method {sqlStoredProcedure.StoredProcedureName}");
+                }
+                else
+                {
+#if DEBUGFORCESCAFFOLD
+                    FileUtils.WriteTextAndDirectory(dalRepositoryPath, updatedFileContent);
+                    Logger.LogSuccess($"[Force Created Repository] {dalRepositoryPath} for method {sqlStoredProcedure.StoredProcedureName}");
+#else
+                    Logger.LogSkipped($"[Skipped Repository] Method {sqlStoredProcedure.StoredProcedureName}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
+#endif
+                }
+
+                if (scaffoldingResult == ScaffoldResult.Created)
+                {
+                    var dalBasePath = Path.GetDirectoryName(_config.Directories.DalDirectory.ToSchemaString("dbo"));
+                    var baseRepositoryPath = Path.Combine(dalBasePath, "BaseRepository.cs");
+                    if (!File.Exists(baseRepositoryPath))
+                    {
+                        FileUtils.WriteTextAndDirectory(baseRepositoryPath, GetBaseRepositoryFile());
+                        Logger.LogSuccess($"[Created Base Repository] {baseRepositoryPath}");
+                    }
+
+                    var dapperExtensionsPath = Path.Combine(dalBasePath, "Utils", "DapperExtensions.cs");
+                    if (!File.Exists(dapperExtensionsPath))
+                    {
+                        FileUtils.WriteTextAndDirectory(dapperExtensionsPath, GetDapperExtensionsFile());
+                        Logger.LogSuccess($"[Created Dapper Extensions] {dapperExtensionsPath}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Repository] {ex.Message}");
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(dalRepositoryPath);
+            }
+
+            return scaffoldingResult;
+        }
 
         private string RemoveMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure)
         {
@@ -163,44 +234,42 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string AddUpdateMethodCall(SyntaxNode root, SqlStoredProcedure sqlStoredProcedure, string methodBody)
         {
             var className = GetClassName(sqlStoredProcedure);
-            var methodName = sqlStoredProcedure.GetMethodName();
+            var methodName = sqlStoredProcedure.StoredProcedureName.EndsWith("FilterPaging") ? $"Get{sqlStoredProcedure.TableName}ByFilterPaging" : sqlStoredProcedure.GetMethodName();
 
             var classDeclaration = root.DescendantNodes()
                                        .OfType<ClassDeclarationSyntax>()
                                        .FirstOrDefault(c => c.Identifier.Text == className);
 
-            if (classDeclaration is null)
+            // If class doesn't exist, create it and add it to root
+            if (classDeclaration == null)
             {
-                // Add the class if it doesn't exist
-                var newClass = CreateCSharpClass(sqlStoredProcedure);
+                var newClass = sqlStoredProcedure.StoredProcedureName.EndsWith("FilterPaging")
+                    ? CreateSearchProcCSharpClass(sqlStoredProcedure)
+                    : CreateCSharpClass(sqlStoredProcedure);
 
                 root = ((CompilationUnitSyntax)root).AddMembers(newClass);
+
                 classDeclaration = root.DescendantNodes()
                                        .OfType<ClassDeclarationSyntax>()
                                        .First(c => c.Identifier.Text == className);
             }
 
-            // Find the method declaration
-            var method = classDeclaration.Members
-                                          .OfType<MethodDeclarationSyntax>()
-                                          .FirstOrDefault(m => m.Identifier.Text == methodName);
-
-
+            // Parse the new method body
             var updatedMethod = SyntaxFactory.ParseMemberDeclaration(methodBody);
+            if (updatedMethod is not MethodDeclarationSyntax)
+                throw new InvalidOperationException("Provided methodBody is not a valid method.");
 
-            SyntaxNode updatedRoot;
-            if (method is not null)
-            {
-                updatedRoot = root.ReplaceNode(method, updatedMethod);
-            }
-            else
-            {
-                var updatedClass = classDeclaration.AddMembers(updatedMethod);
-                updatedRoot = root.ReplaceNode(classDeclaration, updatedClass);
-            }
+            var method = classDeclaration.Members
+                                         .OfType<MethodDeclarationSyntax>()
+                                         .FirstOrDefault(m => m.Identifier.Text == methodName);
+
+            SyntaxNode updatedRoot = method is not null
+                ? root.ReplaceNode(method, updatedMethod)
+                : root.ReplaceNode(classDeclaration, classDeclaration.AddMembers(updatedMethod));
 
             return updatedRoot.NormalizeWhitespace().ToFullString();
         }
+
 
         private string GetFilePath(SqlStoredProcedure sqlStoredProcedure)
         {
@@ -211,6 +280,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private SyntaxNode CreateCSharpFileOutline(SqlStoredProcedure sqlStoredProcedure)
         {
+            var isForSearchProc = sqlStoredProcedure.StoredProcedureName.EndsWith("FilterPaging");
+                    
             var root = SyntaxFactory.CompilationUnit()
                                     .AddUsings(
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName(GetDalInterfaceNamespace(sqlStoredProcedure))),
@@ -219,7 +290,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Data")),
                                         SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("Dapper")))
                                     .AddMembers(SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(GetDalNamespace(sqlStoredProcedure)))
-                                    .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(CreateCSharpClass(sqlStoredProcedure))));
+                                    .WithMembers(SyntaxFactory.SingletonList<MemberDeclarationSyntax>(isForSearchProc ? CreateSearchProcCSharpClass(sqlStoredProcedure)
+                    :  CreateCSharpClass(sqlStoredProcedure))));
 
             return root;
         }
@@ -249,7 +321,19 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                         .WithBody(SyntaxFactory.Block())));
         }
 
-
+        private ClassDeclarationSyntax CreateSearchProcCSharpClass(SqlStoredProcedure sqlStoredProcedure)
+        {
+            return SyntaxFactory.ClassDeclaration(GetClassName(sqlStoredProcedure))
+                .WithModifiers(SyntaxFactory.TokenList(
+                    SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                    SyntaxFactory.Token(SyntaxKind.PartialKeyword)))
+                .WithBaseList(SyntaxFactory.BaseList(
+                    SyntaxFactory.SeparatedList<BaseTypeSyntax>(new[]
+                    {
+                SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName("BaseRepository")),
+                SyntaxFactory.SimpleBaseType(SyntaxFactory.ParseTypeName(GetInterfaceName(sqlStoredProcedure)))
+                    })));
+        }
         private string GenerateStoredProcedureMethod(SqlStoredProcedure sqlStoredProcedure)
         {
             var sb = new StringBuilder();
@@ -342,6 +426,78 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             return sb.ToString();
         }
+
+        private string GenerateSearchStoredProcedureMethod(SqlStoredProcedure sqlStoredProcedure)
+        {
+            var sb = new StringBuilder();
+            var methodName = $"Get{sqlStoredProcedure.TableName}ByFilterPaging";
+
+            string filterModelClassName = $"{sqlStoredProcedure.TableName}Filter";
+
+            string filterModelName = filterModelClassName[0].ToString().ToLower() + filterModelClassName.Substring(1);
+
+            sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+             
+              
+                  
+            sb.Append($"{sqlStoredProcedure.TableName}Filter {filterModelName}");
+                    
+              
+
+            sb.AppendLine(")");
+            
+       
+
+            sb.AppendLine("{");
+
+         
+
+            // Declare return object
+          
+         
+             sb.AppendLine($"    List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> ret{sqlStoredProcedure.TableName} = new List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>();");
+                
+           
+
+            sb.AppendLine("    DynamicParameters dParams = new DynamicParameters();");
+
+            // Append dynamic parameter setup
+            foreach (var param in sqlStoredProcedure.Parameters)
+            {
+              
+               
+                    if (param.DataType.StartsWith("udtt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {filterModelName}.{param.ColumnName.ToCamelCase()}.ToDataTable().AsTableValuedParameter(\"{sqlStoredProcedure.Schema}.{param.DataType}\"));");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {filterModelName}.{param.ColumnName});");
+                    }
+                
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("    using (SqlConnection connection = GetConnection())");
+            sb.AppendLine("    {");
+
+            sb.AppendLine($"        ret{sqlStoredProcedure.TableName} = (await connection.QueryAsync<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>(\"{sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}\", dParams, commandType: System.Data.CommandType.StoredProcedure)).AsList();");
+                
+                             
+              
+
+            sb.AppendLine("    }");
+
+          
+            sb.AppendLine($"    return ret{sqlStoredProcedure.TableName};");
+            
+
+            sb.AppendLine("}");
+
+            return sb.ToString();
+        }
+
+    
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)
         {

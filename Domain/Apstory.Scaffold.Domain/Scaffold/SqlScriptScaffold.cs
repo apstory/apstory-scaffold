@@ -142,5 +142,17 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             return new ScaffoldFileResult(scaffoldingResult, filePath);
         }
+
+        public async Task<List<ScaffoldFileResult>> GenerateSearchProcCode(SqlTable sqlTable,string sqlStoredProcedurePath, SqlStoredProcedure sqlStoredProcedure)
+        {
+            string lockName = $"{sqlTable.Schema}.{sqlTable.TableName}";
+
+            List<ScaffoldFileResult> results = new List<ScaffoldFileResult>();
+            results.Add(await WriteScriptToDisk(sqlTable, GenerateSearchProcedure(sqlTable, sqlStoredProcedurePath, sqlStoredProcedure)));
+        
+            return results;
+        }
+
+      
     }
 }

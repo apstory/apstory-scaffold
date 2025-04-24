@@ -5,6 +5,7 @@ using Apstory.Scaffold.Model.Enum;
 using Apstory.Scaffold.Model.Sql;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Apstory.Scaffold.Domain.Scaffold
 {
@@ -63,6 +64,51 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             return scaffoldingResult;
         }
+        public async Task<ScaffoldResult> GenerateSearchProcCode(SqlTable sqlTable,SqlStoredProcedure sqlStoredProcedure)
+        {
+            var scaffoldingResult = ScaffoldResult.Updated;
+            var fileBody = GenerateSearchProcCSharpModel(sqlTable,sqlStoredProcedure);
+            var fileName = $"{GetClassName(sqlTable)}Filter.#SCHEMA#.Gen.cs".ToSchemaString(sqlStoredProcedure.Schema);
+            var modelPath = Path.Combine(_config.Directories.ModelDirectory.ToSchemaString(sqlStoredProcedure.Schema), fileName);
+            var existingModelContent = string.Empty;
+
+            if (File.Exists(modelPath))
+                existingModelContent = FileUtils.SafeReadAllText(modelPath);
+            else
+                scaffoldingResult = ScaffoldResult.Created;
+
+            try
+            {
+                await _lockingService.AcquireLockAsync(modelPath);
+
+                if (!existingModelContent.Equals(fileBody))
+                {
+                    FileUtils.WriteTextAndDirectory(modelPath, fileBody);
+                    Logger.LogSuccess($"[Created Filter Model] {modelPath}");
+                }
+                else
+                {
+#if DEBUGFORCESCAFFOLD
+                    FileUtils.WriteTextAndDirectory(modelPath, fileBody);
+                    Logger.LogSuccess($"[Force Created Model] {modelPath}");
+#else
+                    Logger.LogSkipped($"[Skipped Filter Model] {modelPath}");
+                    scaffoldingResult = ScaffoldResult.Skipped;
+#endif
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"[Model Error] {ex.Message}");
+            }
+            finally
+            {
+                _lockingService.ReleaseLock(modelPath);
+            }
+
+            return scaffoldingResult;
+        }
+
 
         public async Task<ScaffoldResult> DeleteCode(SqlTable sqlTable)
         {
@@ -162,6 +208,91 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 .AddMembers(namespaceDeclaration);
 
             // Normalize and return the code as a string
+            return compilationUnit.NormalizeWhitespace().ToFullString();
+        }
+    
+        private string GenerateSearchProcCSharpModel(SqlTable sqlTable, SqlStoredProcedure sqlStoredProcedure)
+        {
+            var classDeclaration = SyntaxFactory.ClassDeclaration($"{sqlTable.TableName}Filter")
+                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                              SyntaxFactory.Token(SyntaxKind.PartialKeyword));
+
+            foreach (var param in sqlStoredProcedure.Parameters)
+            {
+                var typeName = param.ToCSharpTypeString();
+                var typeSyntax = SyntaxFactory.ParseTypeName(typeName);
+                var property = SyntaxFactory.PropertyDeclaration(typeSyntax, param.ColumnName)
+                    .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+                    .AddAccessorListAccessors(
+                        SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                        SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
+
+                ExpressionSyntax? initializer = null;
+                var name = param.ColumnName.ToLowerInvariant();
+
+                if (typeName == "List<byte>")
+                {
+                    initializer = SyntaxFactory.ObjectCreationExpression(SyntaxFactory.ParseTypeName("List<byte>"))
+                        .WithArgumentList(SyntaxFactory.ArgumentList());
+                }
+                else if (typeName == "List<int>")
+                {
+                    initializer = SyntaxFactory.ObjectCreationExpression(SyntaxFactory.ParseTypeName("List<int>"))
+                        .WithArgumentList(SyntaxFactory.ArgumentList());
+                }
+                else if (name == "isactive")
+                {
+                    initializer = SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression);
+                }
+                else if (name == "sortdirection")
+                {
+                    initializer = SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
+                        SyntaxFactory.Literal("DESC"));
+                }
+                else if (name == "fromdatetime" || name == "todatetime")
+                {
+                    initializer = SyntaxFactory.ObjectCreationExpression(SyntaxFactory.ParseTypeName("DateTime"))
+                        .WithArgumentList(SyntaxFactory.ArgumentList(
+                            SyntaxFactory.SeparatedList<ArgumentSyntax>(new SyntaxNodeOrToken[]
+                            {
+                        SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(1753))),
+                        SyntaxFactory.Token(SyntaxKind.CommaToken),
+                        SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(1))),
+                        SyntaxFactory.Token(SyntaxKind.CommaToken),
+                        SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(1)))
+                            })));
+                }
+                else if (name == "pagesize" && string.IsNullOrEmpty(param.DefaultValue))
+                {
+                    initializer = SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(20));
+                }
+                else if (name == "pagenumber" && string.IsNullOrEmpty(param.DefaultValue))
+                {
+                    initializer = SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression, SyntaxFactory.Literal(1));
+                }
+
+                if (initializer != null)
+                {
+                    property = property.WithInitializer(
+                        SyntaxFactory.EqualsValueClause(initializer))
+                        .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken));
+                }
+
+                classDeclaration = classDeclaration.AddMembers(property);
+            }
+
+           // Wrap the class in the provided namespace
+            var namespaceDeclaration = SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(_config.Namespaces.ModelNamespace.ToSchemaString(sqlTable.Schema)))
+                .AddMembers(classDeclaration);
+
+            var compilationUnit = SyntaxFactory.CompilationUnit()
+                .AddUsings(
+                    SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System")),
+                    SyntaxFactory.UsingDirective(SyntaxFactory.ParseName("System.Collections.Generic")))
+                .AddMembers(namespaceDeclaration);
+
             return compilationUnit.NormalizeWhitespace().ToFullString();
         }
 
