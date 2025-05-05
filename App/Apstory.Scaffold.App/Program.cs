@@ -22,7 +22,7 @@ class Program
                 { "-sqlproject", "sqlproject" },
                 { "-namespace", "namespace" },
                 { "-regen", "regen" },
-                { "-clean", "clean" },
+                { "-delete", "delete" },
                 { "-sqlpush", "sqlpush" },
                 { "-sqldestination", "sqldestination" },
                 { "-variant", "variant" },
@@ -39,10 +39,10 @@ class Program
                 Console.WriteLine("-sqlproject <path>       : Overrides the SQL project path instead of letting the application search for it.");
                 Console.WriteLine("-namespace <name>        : Overrides the namespace for scaffolded code instead of fetching it from the sqlproj.");
                 Console.WriteLine("-regen <params>          : Executes immediate regeneration of files. Will regenerate all found schemas when no additional information supplied. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to regenerate. Can send multiple entities with ;");
+                Console.WriteLine("-delete <params>         : Deletes all generated entries. Can leave empty, specify a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to delete. Can send multiple entities with ;");
                 Console.WriteLine("-sqlpush <params>        : Pushes changes to database. Can leave empty to detect git changes. Specify a table 'dbo.tablename' (Limited Functionality), or a procedure 'dbo.zgen_procname' to push. Requires -sqldestination switch as well. Please note: No table updates are pushed, only the initial creates can be pushed. Can send multiple entities with ;");
                 Console.WriteLine("-sqldestination <params> : Pushes changes to database. This is the connection string of the database.");
                 Console.WriteLine("-variant <params>        : Possible variants: 'merge' - merge will cause InsUpd procs to be generated with a merge statement that allows users to insert their own id on uniqueidentifiers");
-                Console.WriteLine("-clean                   : Deletes existing generated files.");
                 Console.WriteLine("-tsmodel                 : Typescript model to read structure from.");
                 Console.WriteLine("-ngsearchpage            : Location to generate angular search page to.");
                 Console.WriteLine("-tsdalfolder             : Location to generate typescript dal service to.");
@@ -52,21 +52,23 @@ class Program
 
             string overrideSqlProjectPath = configuration["sqlproject"];
             string overrideNamespace = configuration["namespace"];
+            var delete = args.Contains("-delete");
             var regenerate = args.Contains("-regen");
-            var clean = args.Contains("-clean");
             var sqlpush = args.Contains("-sqldestination");
             var ngSearchPage = args.Contains("-ngsearchpage");
             var tsDalFolder = args.Contains("-tsdalfolder");
 
             int flags = 0;
             if (args.Contains("-regen")) flags = (flags << 1) | 1;
-            if (args.Contains("-clean")) flags = (flags << 1) | 1;
             if (args.Contains("-sqldestination")) flags = (flags << 1) | 1;
+            if (args.Contains("-ngsearchpage")) flags = (flags << 1) | 1;
+            if (args.Contains("-tsdalfolder")) flags = (flags << 1) | 1;
+            if (args.Contains("-delete")) flags = (flags << 1) | 1;
 
             //Ensure 0 or only 1 flag is set
             if (flags > 1)
             {
-                Console.WriteLine("Only specify one of the following: clean, regen, or sqldestination.");
+                Console.WriteLine("Only specify one of the following: clean, regen, sqldestination, ngsearchpage, tsdalfolder or delete");
                 return;
             }
 
@@ -110,10 +112,10 @@ class Program
                     services.AddTransient<SqlDomainServiceServiceCollectionExtensionScaffold>();
                     services.AddTransient<SqlLiteScaffold>();
 
-                    if (clean)
-                        services.AddHostedService<SqlScaffoldCleanupWorker>();
-                    else if (regenerate)
+                    if (regenerate)
                         services.AddHostedService<SqlScaffoldRegenerationWorker>();
+                    else if (delete)
+                        services.AddHostedService<SqlScaffoldDeleteWorker>();
                     else if (sqlpush)
                         services.AddHostedService<SqlUpdateWorker>();
                     else if (ngSearchPage)

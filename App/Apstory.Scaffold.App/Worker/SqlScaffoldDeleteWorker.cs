@@ -7,7 +7,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Apstory.Scaffold.App.Worker
 {
-    public class SqlScaffoldCleanupWorker : BackgroundService
+    public class SqlScaffoldDeleteWorker : BackgroundService
     {
         private readonly IHostApplicationLifetime _lifetime;
         private readonly IConfiguration _configuration;
@@ -24,7 +24,7 @@ namespace Apstory.Scaffold.App.Worker
         private readonly SqlDalRepositoryServiceCollectionExtensionScaffold _sqlDalRepositoryServiceCollectionExtensionScaffold;
         private readonly SqlDomainServiceServiceCollectionExtensionScaffold _sqlDomainServiceServiceCollectionExtensionScaffold;
 
-        public SqlScaffoldCleanupWorker(IHostApplicationLifetime lifetime,
+        public SqlScaffoldDeleteWorker(IHostApplicationLifetime lifetime,
                                         IConfiguration configuration,
                                         CSharpConfig csharpConfig,
                                         SqlDalRepositoryScaffold sqlDalRepositoryScaffold,
@@ -56,26 +56,87 @@ namespace Apstory.Scaffold.App.Worker
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var cleanArgs = _configuration["clean"];
-            var dbSchemas = Directory.EnumerateDirectories(_csharpConfig.Directories.DBDirectory, "*", SearchOption.TopDirectoryOnly)
-                                     .Where(folder => !IsInExcludedFolder(folder, _csharpConfig.Directories.DBDirectory));
+            var cleanArgs = _configuration["delete"];
+            var schema = "dbo";
 
-            foreach (var dbSchema in dbSchemas)
+            if (string.IsNullOrEmpty(cleanArgs))
             {
-                var schemaStoredProcedurePath = Path.Combine(_csharpConfig.Directories.DBDirectory, dbSchema, "Stored Procedures");
-                var allGeneratedStoredProcedures = Directory.EnumerateFiles(schemaStoredProcedurePath, "zgen_*.sql", SearchOption.TopDirectoryOnly);
+                var dbSchemas = Directory.EnumerateDirectories(_csharpConfig.Directories.DBDirectory, "*", SearchOption.TopDirectoryOnly)
+                                         .Where(folder => !IsInExcludedFolder(folder, _csharpConfig.Directories.DBDirectory));
 
-                foreach (var storedProcedurePath in allGeneratedStoredProcedures)
-                    await CleanStoredProcedure(storedProcedurePath);
+                foreach (var dbSchema in dbSchemas)
+                    await DeleteSchema(dbSchema);
+            }
+            else
+            {
+                var entities = cleanArgs.Split(";");
+                foreach (var regenEntry in entities)
+                {
+                    var entityName = string.Empty;
+                    var argSplit = regenEntry.Split(".");
+                    if (argSplit.Length > 1)
+                    {
+                        schema = argSplit[0];
+                        entityName = argSplit[1];
+                    }
 
-                var schemaTablesPath = Path.Combine(_csharpConfig.Directories.DBDirectory, dbSchema, "Tables");
-                var allTables = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
+                    if (string.IsNullOrWhiteSpace(entityName))
+                    {
+                        //Delete entire schema's table and procs (-regen=dbo)
+                        Logger.LogInfo($"Delete entire {schema} schema");
 
-                foreach (var tablePath in allTables)
-                    await CleanTable(tablePath);
+                        await DeleteSchema(schema);
+                    }
+                    else
+                    {
+                        //Regenerate specific entity (-regen=dbo.table // -regen=dbo.table_procName)
+                        var tablePath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Tables", $"{entityName}.sql");
+                        if (File.Exists(tablePath))
+                        {
+                            Logger.LogInfo($"Delete Table {schema}.{entityName}");
+                            var schemaStoredProcedurePath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Stored Procedures");
+                            var allGeneratedStoredProcedures = Directory.EnumerateFiles(schemaStoredProcedurePath, $"zgen_{entityName}_*.sql", SearchOption.TopDirectoryOnly);
+
+                            foreach (var storedProcedurePath in allGeneratedStoredProcedures)
+                                await DeleteStoredProcedure(storedProcedurePath);
+
+                            await DeleteTable(tablePath);
+                        }
+                        else
+                        {
+                            var storedProcPath = Path.Combine(_csharpConfig.Directories.DBDirectory, schema, "Stored Procedures", $"{entityName}.sql");
+                            if (File.Exists(storedProcPath))
+                            {
+                                Logger.LogInfo($"Regenerate Stored Procedure {schema}.{entityName}");
+                                await DeleteStoredProcedure(storedProcPath);
+                            }
+                            else
+                            {
+                                Logger.LogError($"Could not find a table or stored procedure {schema}.{entityName}");
+                            }
+                        }
+                    }
+                }
             }
 
+
+
             _lifetime.StopApplication();
+        }
+
+        private async Task DeleteSchema(string dbSchema)
+        {
+            var schemaStoredProcedurePath = Path.Combine(_csharpConfig.Directories.DBDirectory, dbSchema, "Stored Procedures");
+            var allGeneratedStoredProcedures = Directory.EnumerateFiles(schemaStoredProcedurePath, "zgen_*.sql", SearchOption.TopDirectoryOnly);
+
+            foreach (var storedProcedurePath in allGeneratedStoredProcedures)
+                await DeleteStoredProcedure(storedProcedurePath);
+
+            var schemaTablesPath = Path.Combine(_csharpConfig.Directories.DBDirectory, dbSchema, "Tables");
+            var allTables = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
+
+            foreach (var tablePath in allTables)
+                await DeleteTable(tablePath);
         }
 
         private bool IsInExcludedFolder(string path, string rootDirectory)
@@ -90,7 +151,7 @@ namespace Apstory.Scaffold.App.Worker
         /// </summary>
         /// <param name="tablePath"></param>
         /// <returns></returns>
-        private async Task CleanTable(string tablePath)
+        private async Task DeleteTable(string tablePath)
         {
             Logger.LogInfo($"[Cleaning Table] {tablePath}");
             try
@@ -117,7 +178,7 @@ namespace Apstory.Scaffold.App.Worker
         /// </summary>
         /// <param name="filePath"></param>
         /// <returns></returns>
-        private async Task CleanStoredProcedure(string filePath)
+        private async Task DeleteStoredProcedure(string filePath)
         {
             Logger.LogInfo($"[Cleaning Stored Procedure] {filePath}");
 
