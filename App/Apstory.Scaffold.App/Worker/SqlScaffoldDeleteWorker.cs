@@ -164,6 +164,9 @@ namespace Apstory.Scaffold.App.Worker
 
                 await _sqlModelScaffold.DeleteCode(tableInfo);
                 await _sqlScriptFileScaffold.DeleteCode(tableInfo);
+
+                if (File.Exists(tablePath))
+                    File.Delete(tablePath);
             }
             catch (Exception ex)
             {
@@ -203,6 +206,9 @@ namespace Apstory.Scaffold.App.Worker
 
                 if (domainResult == Model.Enum.ScaffoldResult.Deleted)
                     await _sqlDomainServiceServiceCollectionExtensionScaffold.DeleteCode(sqlStoredProcedureInfo);
+
+                if (File.Exists(filePath))
+                    File.Delete(filePath);
             }
             catch (Exception ex)
             {

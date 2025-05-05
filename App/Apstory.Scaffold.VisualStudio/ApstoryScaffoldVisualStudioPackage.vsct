@@ -78,6 +78,14 @@
         </Strings>
       </Button>
 
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryDeleteCommandId" priority="0x0103" type="Button">
+        <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
+        <Icon guid="guidImgDelete" id="bmpDelete" />
+        <Strings>
+          <ButtonText>Delete</ButtonText>
+        </Strings>
+      </Button>
+
       <!-- Context Menu Buttons -->
       <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ContextMenuScaffoldCommandId" priority="0x0200" type="Button">
         <Parent guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="MyMenuGroup" />
@@ -94,6 +102,14 @@
           <ButtonText>Push to SQL</ButtonText>
         </Strings>
       </Button>
+
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ContextMenuSqlDeleteCommandId" priority="0x0202" type="Button">
+        <Parent guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="MyMenuGroup" />
+        <Icon guid="guidImgDelete" id="bmpDelete" />
+        <Strings>
+          <ButtonText>Delete</ButtonText>
+        </Strings>
+      </Button>
     </Buttons>
 
 
@@ -108,6 +124,7 @@
             must be the actual index (1-based) of the bitmap inside the bitmap strip. -->
       <Bitmap guid="guidImgRunStrip" href="Resources\scaffold_run_strip.png" usedList="bmpRun,bmpRunFail,bmpRunSkipped,bmpRunSuccess"/>
       <Bitmap guid="guidImgConfig" href="Resources\scaffold_config.png" usedList="bmpConfig"/>
+      <Bitmap guid="guidImgDelete" href="Resources\scaffold_delete.png" usedList="bmpDelete"/>
       <Bitmap guid="guidImgSqlStrip" href="Resources\scaffold_sql_strip.png" usedList="bmpSql,bmpSqlFail,bmpSqlSkipped,bmpSqlSuccess"/>
     </Bitmaps>
   </Commands>
@@ -126,9 +143,11 @@
       <IDSymbol name="ToolbarApstoryScaffoldCommandId" value="0x1051" />
       <IDSymbol name="ToolbarApstoryConfigCommandId" value="0x1053" />
       <IDSymbol name="ToolbarApstorySqlUpdateCommandId" value="0x1055" />
+      <IDSymbol name="ToolbarApstoryDeleteCommandId" value="0x1056" />
 
       <IDSymbol name="ContextMenuScaffoldCommandId" value="0x1052" />
       <IDSymbol name="ContextMenuSqlUpdateCommandId" value="0x1054" />
+      <IDSymbol name="ContextMenuSqlDeleteCommandId" value="0x1057" />
 
       <IDSymbol name="SubMenu" value="0x1001"/>
       <IDSymbol name="MyMenuGroup" value="0x1020" />
@@ -141,11 +160,15 @@
       <IDSymbol name="bmpRunSuccess" value="4" />
     </GuidSymbol>
 
-    <GuidSymbol name="guidImgConfig" value="{188b5164-e89b-4490-aff5-7f1fd4b28fd6}" >
+    <GuidSymbol name="guidImgConfig" value="{188b5164-e89b-4490-aff5-7f1fd4b28fd7}" >
       <IDSymbol name="bmpConfig" value="1" />
     </GuidSymbol>
 
-    <GuidSymbol name="guidImgSqlStrip" value="{198b5164-e89b-4490-aff5-7f1fd4b28fd6}" >
+    <GuidSymbol name="guidImgDelete" value="{188b5164-e89b-4490-aff5-7f1fd4b28fd8}" >
+      <IDSymbol name="bmpDelete" value="1" />
+    </GuidSymbol>
+
+    <GuidSymbol name="guidImgSqlStrip" value="{198b5164-e89b-4490-aff5-7f1fd4b28fd9}" >
       <IDSymbol name="bmpSql" value="1" />
       <IDSymbol name="bmpSqlFail" value="2" />
       <IDSymbol name="bmpSqlSkipped" value="3" />

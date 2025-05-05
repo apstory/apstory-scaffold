@@ -14,6 +14,7 @@ namespace Apstory.Scaffold.VisualStudio
     {
         private bool isScaffolding = false;
         private bool isSqlPushing = false;
+        private bool isSqlDeleting = false;
 
         private async void ExecuteToolbarOpenConfigAsync(object sender, EventArgs e)
         {
@@ -152,6 +153,68 @@ namespace Apstory.Scaffold.VisualStudio
             {
                 isScaffolding = false;
                 btnRunCodeScaffold.Enabled = !isScaffolding;
+            }
+        }
+
+        private async void ExecuteToolbarSqlDeleteAsync(object sender, EventArgs e)
+        {
+            await this.LoadConfigAsync();
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            if (isSqlDeleting)
+            {
+                Log("Delete operation is already running. Please wait.");
+                return;
+            }
+
+            isSqlDeleting = true;
+            btnSqlDelete.Enabled = !isSqlDeleting;
+
+            try
+            {
+                var solutionDirectory = GetSolutionDirectory();
+                var activeDocPath = GetActiveDocumentPath();
+                var fileName = Path.GetFileName(activeDocPath);
+                if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                {
+                    Log($"Deleting only supports .sql files");
+                    return;
+                }
+
+                Log($"Executing Deletion for {fileName} in {solutionDirectory}");
+                var schema = GetSchemaFromPath(activeDocPath);
+                var tableOrProc = fileName.Replace(".sql", string.Empty);
+
+                // Run the process on a background thread
+                var logs = await Task.Run(() => ExecuteSQLDelete($"{schema}.{tableOrProc}", solutionDirectory));
+
+                // Return to the UI thread for logging
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                foreach (var log in logs)
+                    Log(log);
+
+                List<string> errorsToLog = logs.Where(s => s.StartsWith("[Error]")).ToList();
+                if (errorsToLog.Any())
+                {
+                    ErrorListProvider.Tasks.Clear();
+
+                    foreach (var errorMessage in errorsToLog)
+                        LogError(errorMessage, Hardcoded.ErrorLogScaffold);
+
+                    ErrorListProvider.Show(); // This ensures the Error List pops up
+                }
+
+                Log($"Deletion completed for {fileName}");
+            }
+            catch (Exception ex)
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                LogError($"Exception in ExecuteToolbarSqlDeleteAsync: {ex.Message}");
+                ErrorListProvider.Show();
+            }
+            finally
+            {
+                isSqlDeleting = false;
+                btnSqlDelete.Enabled = !isSqlDeleting;
             }
         }
 
@@ -299,6 +362,76 @@ namespace Apstory.Scaffold.VisualStudio
             {
                 isScaffolding = false;
                 btnRunCodeScaffold.Enabled = !isScaffolding;
+            }
+        }
+
+        private async void ExecuteContextMenuSqlDeleteAsync(object sender, EventArgs e)
+        {
+            await this.LoadConfigAsync();
+            var solutionDirectory = GetSolutionDirectory();
+            var selectedPaths = GetSelectedItemPaths();
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            if (isSqlDeleting)
+            {
+                Log("Delete operation is already running. Please wait.");
+                return;
+            }
+
+            isSqlDeleting = true;
+            btnSqlDelete.Enabled = !isSqlDeleting;
+
+            try
+            {
+                List<string> toDelete = new List<string>();
+                foreach (var path in selectedPaths)
+                {
+                    var fileName = Path.GetFileName(path);
+                    if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Log($"Deleting only supports .sql files");
+                        return;
+                    }
+
+                    var schema = GetSchemaFromPath(path);
+                    var tableOrProc = fileName.Replace(".sql", string.Empty);
+                    toDelete.Add($"{schema}.{tableOrProc}");
+                }
+
+                var scaffoldArgs = string.Join(";", toDelete.ToArray());
+                Log($"Executing Deletion for {scaffoldArgs} in {solutionDirectory}");
+
+                // Run the process on a background thread
+                var logs = await Task.Run(() => ExecuteSQLDelete(scaffoldArgs, solutionDirectory));
+
+                // Return to the UI thread for logging
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                foreach (var log in logs)
+                    Log(log);
+
+                List<string> errorsToLog = logs.Where(s => s.StartsWith("[Error]")).ToList();
+                if (errorsToLog.Any())
+                {
+                    ErrorListProvider.Tasks.Clear();
+
+                    foreach (var errorMessage in errorsToLog)
+                        LogError(errorMessage, Hardcoded.ErrorLogScaffold);
+
+                    ErrorListProvider.Show(); // This ensures the Error List pops up
+                }
+
+                Log($"Deletion Complete.");
+            }
+            catch (Exception ex)
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                LogError($"Exception in ExecuteContextMenuSqlDeleteAsync: {ex.Message}");
+                ErrorListProvider.Show();
+            }
+            finally
+            {
+                isSqlDeleting = false;
+                btnSqlDelete.Enabled = !isSqlDeleting;
             }
         }
     }

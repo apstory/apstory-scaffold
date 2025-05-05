@@ -82,17 +82,24 @@ The `.sqlproj` file used can be **overridden** using the `-sqlproject` parameter
   Pushes changes to the database.  
   - When left empty, it detects Git changes.  
   - You can specify:
-    - A table: **`dbo.tablename`** (Limited functionality)
+    - A table: **`dbo.tablename`** (Limited functionality - Will only push new tables, not any updates made to an existing table)
     - A procedure: **`dbo.zgen_procname`**  
   - **Requires** the `-sqldestination` switch.  
+    - Specifies the **database connection string** for pushing changes.
   - **Note:** Only initial table creation can be pushed, **no table updates** are pushed.  
   - Multiple entities can be specified using `;`, e.g.:  
     ```
     -sqlpush dbo.Customer;dbo.zgen_InsertOrder
     ```
 
-- **`-sqldestination <params>`**  
-  Specifies the **database connection string** for pushing changes.
+- **`-delete`**  
+  Deletes and removes associated scaffolded code.
+  - When left empty, it deletes all scaffolded code.  
+  - You can specify:
+    - A schema: **`dbo`** To delete all scaffolded code within a schema.
+    - A table: **`dbo.tablename`** to delete the table and all scaffolded sql stored procedures
+    - A procedure: **`dbo.zgen_procname`**  
 
-- **`-clean`**  
-  Deletes all existing **generated files**.
+- **`-tsdalfolder`**
+  Scaffolds a SQLite repository based on a typescript model
+  - **Requires** the `-tsmodel` switch to point to a specific typescript model.  

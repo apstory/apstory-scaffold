@@ -110,6 +110,58 @@ namespace Apstory.Scaffold.VisualStudio
                 arguments = $"-sqlproject \"{this.config.SqlProject}\" {arguments}";
             if (!string.IsNullOrWhiteSpace(this.config.Namespace))
                 arguments = $"-namespace {this.config.Namespace} {arguments}";
+            if (!string.IsNullOrWhiteSpace(this.config.Variant))
+                arguments = $"-variant {this.config.Variant} {arguments}";
+
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = scaffoldAppLocation,
+                Arguments = arguments,
+                WorkingDirectory = workingDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            List<string> logs = new List<string>();
+            using (Process process = new Process { StartInfo = psi })
+            {
+                process.OutputDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        logs.Add(e.Data);
+                };
+
+                process.ErrorDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        logs.Add($"Error: {e.Data}");
+                };
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+                await process.WaitForExitAsync();
+            }
+
+            return logs;
+        }
+
+        /// <summary>
+        /// Execute Apstory Delete Command
+        /// </summary>
+        /// <param name="schemaTableOrProcName"> dbo // dbo.tableName // dbo.zgen_table_proc </param>
+        /// <param name="workingDirectory">Directory to execute the command in</param>
+        private async Task<List<string>> ExecuteSQLDelete(string schemaTableOrProcName, string workingDirectory)
+        {
+            string arguments = $"-delete {schemaTableOrProcName}";
+            if (!string.IsNullOrWhiteSpace(this.config.SqlProject))
+                arguments = $"-sqlproject \"{this.config.SqlProject}\" {arguments}";
+            if (!string.IsNullOrWhiteSpace(this.config.Namespace))
+                arguments = $"-namespace {this.config.Namespace} {arguments}";
+            if (!string.IsNullOrWhiteSpace(this.config.Variant))
+                arguments = $"-variant {this.config.Variant} {arguments}";
 
             ProcessStartInfo psi = new ProcessStartInfo
             {

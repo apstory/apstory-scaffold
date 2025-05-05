@@ -52,15 +52,21 @@ namespace Apstory.Scaffold.VisualStudio
         public const string PackageGuidString = "033376d0-4630-4068-89d7-e6629cfe6645";
 
         private const string guidApstoryScaffoldVisualStudioPackageCmdSet = "cf130a03-5202-4448-8173-02f6b1d00bd2"; // Match `guidApstoryScaffoldVisualStudioPackageCmdSet`
+        
         private const int ToolbarApstoryScaffoldCommandId = 0x1051; //Toolbar Run Scaffold
-        private const int ContextMenuScaffoldCommandId = 0x1052;    //Context Run Scaffold
-        private const int ToolbarApstoryConfigCommandId = 0x1053;   //Toolbar Settings
-        private const int ContextMenuSqlUpdateCommandId = 0x1054;   //Context Update SQL Database
-        private const int ToolbarApstorySqlUpdateCommandId = 0x1055;   //Toolbar Settings
+        private const int ToolbarApstorySqlUpdateCommandId = 0x1055;   
+        private const int ToolbarApstoryConfigCommandId = 0x1053;   
+        private const int ToolbarApstoryDeleteCommandId = 0x1056;   
+
+        private const int ContextMenuScaffoldCommandId = 0x1052;    
+        private const int ContextMenuSqlUpdateCommandId = 0x1054;
+        private const int ContextMenuSqlDeleteCommandId = 0x1057;   
+
 
         private MenuCommand btnRunCodeScaffold;
         private MenuCommand btnOpenConfig;
         private MenuCommand btnSqlUpdate;
+        private MenuCommand btnSqlDelete;
 
         private ScaffoldConfig config;
 
@@ -104,14 +110,23 @@ namespace Apstory.Scaffold.VisualStudio
                 btnOpenConfig = new MenuCommand(ExecuteToolbarOpenConfigAsync, cmdToolbarOpenSettingsId);
                 commandService.AddCommand(btnOpenConfig);
 
+                var cmdToolbarSqlDeleteId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryDeleteCommandId);
+                btnSqlDelete = new MenuCommand(ExecuteToolbarSqlDeleteAsync, cmdToolbarSqlDeleteId);
+                commandService.AddCommand(btnSqlDelete);
+
+
                 //Right-click Context Menu Buttons
                 var cmdContextCodeScaffold = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ContextMenuScaffoldCommandId);
                 var menuScaffoldCommand = new OleMenuCommand(ExecuteContextMenuCodeScaffoldAsync, cmdContextCodeScaffold);
                 commandService?.AddCommand(menuScaffoldCommand);
 
                 var cmdContextSqlUpdate = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ContextMenuSqlUpdateCommandId);
-                var menuSqlCommand = new OleMenuCommand(ExecuteContextMenuSqlUpdateAsync, cmdContextSqlUpdate);
-                commandService?.AddCommand(menuSqlCommand);
+                var menuSqlUpdateCommand = new OleMenuCommand(ExecuteContextMenuSqlUpdateAsync, cmdContextSqlUpdate);
+                commandService?.AddCommand(menuSqlUpdateCommand);
+
+                var cmdContextSqlDelete = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ContextMenuSqlDeleteCommandId);
+                var menuSqlDeleteCommand = new OleMenuCommand(ExecuteContextMenuSqlDeleteAsync, cmdContextSqlDelete);
+                commandService?.AddCommand(menuSqlDeleteCommand);
             }
 
 

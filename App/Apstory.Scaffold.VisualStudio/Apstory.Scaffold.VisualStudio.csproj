@@ -98,6 +98,7 @@
     <Content Include="Resources\icon-cloud-engineering-1.png">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
+    <Content Include="Resources\scaffold_delete.png" />
     <Content Include="Resources\scaffold_run_strip.png" />
     <Content Include="Resources\scaffold_sql_strip.png" />
     <VSCTCompile Include="ApstoryScaffoldVisualStudioPackage.vsct">
