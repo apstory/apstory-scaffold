@@ -241,11 +241,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                     .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.StaticKeyword))
                                     .AddParameterListParameters(
                                         SyntaxFactory.Parameter(SyntaxFactory.Identifier("services"))
-                                                                             .WithType(SyntaxFactory.ParseTypeName("IServiceCollection")),
-                                        SyntaxFactory.Parameter(SyntaxFactory.Identifier("connectionString"))
-                                                                             .WithType(SyntaxFactory.ParseTypeName("string")))
+                                                                             .WithType(SyntaxFactory.ParseTypeName("IServiceCollection"))
+                                                                             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.ThisKeyword))))
                                     .WithBody(SyntaxFactory.Block(SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName("services")))));
         }
+
+        
 
         private string GetDomainNamespace(SqlStoredProcedure sqlStoredProcedure)
         {

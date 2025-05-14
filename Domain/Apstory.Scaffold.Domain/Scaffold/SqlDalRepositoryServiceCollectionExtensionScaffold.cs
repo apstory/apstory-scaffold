@@ -241,7 +241,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                     .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword), SyntaxFactory.Token(SyntaxKind.StaticKeyword))
                                     .AddParameterListParameters(
                                         SyntaxFactory.Parameter(SyntaxFactory.Identifier("services"))
-                                                                             .WithType(SyntaxFactory.ParseTypeName("IServiceCollection")),
+                                                                             .WithType(SyntaxFactory.ParseTypeName("IServiceCollection"))
+                                                                             .WithModifiers(SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.ThisKeyword))),
                                         SyntaxFactory.Parameter(SyntaxFactory.Identifier("connectionString"))
                                                                              .WithType(SyntaxFactory.ParseTypeName("string")))
                                     .WithBody(SyntaxFactory.Block(SyntaxFactory.ReturnStatement(SyntaxFactory.IdentifierName("services")))));
