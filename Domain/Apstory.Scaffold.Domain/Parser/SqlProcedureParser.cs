@@ -12,7 +12,7 @@ namespace Apstory.Scaffold.Domain.Parser
 
             var paramsPart = sqlProcScript.Substring(0, sqlProcScript.ToUpper().IndexOf("BEGIN") + 5);
 
-            var fileNameRx = Regex.Match(paramsPart, @"CREATE\s+PROCEDURE\s+\[?(\w+)\]?\.?\[?(\w+)\]?.*?\((.*)\).*?AS.*?BEGIN", RegexOptions.Singleline);
+            var fileNameRx = Regex.Match(paramsPart, @"CREATE\s+PROCEDURE\s+\[?(\w+)\]?\.?\[?(\w+)\]?.*?\(?(.*)\)?.*?AS.*?BEGIN", RegexOptions.Singleline);
             sqlStoredProcedure.Schema = fileNameRx.Groups[1].Value;
             sqlStoredProcedure.StoredProcedureName = fileNameRx.Groups[2].Value;
             sqlStoredProcedure.TableName = fileNameRx.Groups[2].Value.Replace("zgen_", "").Split("_")[0].ToPascalCase();
