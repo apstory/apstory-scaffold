@@ -195,15 +195,19 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             var foreignKeyConstraints = sqlTable.Constraints.Where(c => c.ConstraintType == ConstraintType.ForeignKey).ToList();
 
-            var fields = foreignKeyConstraints.Select(constraint =>
-                RoslynUtils.CreateField($"_{constraint.RefTable.ToCamelCase()}Repo", $"I{constraint.RefTable}Repository", SyntaxKind.PrivateKeyword, SyntaxKind.ReadOnlyKeyword));
+            //In case where multiple references are made to the same table, we need to ensure we only create them once.
+            var distinctTableRefs = foreignKeyConstraints.Select(s => s.RefTable).Distinct();
+            var fields = distinctTableRefs.Select(refTable =>
+                RoslynUtils.CreateField($"_{refTable.ToCamelCase()}Repo", $"I{refTable}Repository", SyntaxKind.PrivateKeyword, SyntaxKind.ReadOnlyKeyword));
 
-            var parameters = foreignKeyConstraints.Select(constraint =>
-                RoslynUtils.CreateParameter($"{constraint.RefTable.ToCamelCase()}Repo", $"I{constraint.RefTable}Repository")).ToList();
+            var parameters = distinctTableRefs.Select(refTable =>
+                RoslynUtils.CreateParameter($"{refTable.ToCamelCase()}Repo", $"I{refTable}Repository")).ToList();
+
             parameters.Insert(0, RoslynUtils.CreateParameter($"repo", $"I{sqlTable.TableName}Repository"));
 
-            var assignments = foreignKeyConstraints.Select(constraint =>
-                RoslynUtils.CreateAssignmentExpression($"_{constraint.RefTable.ToCamelCase()}Repo", $"{constraint.RefTable.ToCamelCase()}Repo")).ToList();
+            var assignments = distinctTableRefs.Select(refTable =>
+                RoslynUtils.CreateAssignmentExpression($"_{refTable.ToCamelCase()}Repo", $"{refTable.ToCamelCase()}Repo")).ToList();
+
             assignments.Insert(0, RoslynUtils.CreateAssignmentExpression($"_repo", $"repo"));
 
             var constructor = SyntaxFactory.ConstructorDeclaration(className)
@@ -256,7 +260,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             // Use StringBuilder to construct the method as a string
             var methodBuilder = new StringBuilder();
-            methodBuilder.AppendLine($"protected async Task<List<{modelNs}.{tableName}>> Append{refTable}(List<{modelNs}.{tableName}> {tableName.ToCamelCase()}s)");
+            var nonIdName = constraint.Column.Substring(0, constraint.Column.Length - 2);
+            methodBuilder.AppendLine($"protected async Task<List<{modelNs}.{tableName}>> Append{nonIdName}(List<{modelNs}.{tableName}> {tableName.ToCamelCase()}s)");
             methodBuilder.AppendLine("{");
 
             var hasDefaultValue = !string.IsNullOrWhiteSpace(column.DefaultValue);
@@ -269,7 +274,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             methodBuilder.AppendLine();
             methodBuilder.AppendLine($"    foreach (var {tableName.ToCamelCase()} in {tableName.ToCamelCase()}s)");
             methodBuilder.AppendLine("    {");
-            methodBuilder.AppendLine($"        {tableName.ToCamelCase()}.{refTable} = distinct{refTable}s.FirstOrDefault(s => s.{columnName} == {tableName.ToCamelCase()}.{columnName});");
+            methodBuilder.AppendLine($"        {tableName.ToCamelCase()}.{nonIdName} = distinct{refTable}s.FirstOrDefault(s => s.{constraint.RefColumn} == {tableName.ToCamelCase()}.{columnName});");
             methodBuilder.AppendLine("    }");
             methodBuilder.AppendLine();
             methodBuilder.AppendLine($"    return {tableName.ToCamelCase()}s;");
@@ -311,7 +316,11 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine($");");
 
                 foreach (var constraint in sqlTable.Constraints.Where(s => s.ConstraintType == ConstraintType.ForeignKey))
-                    sb.AppendLine($"    await Append{constraint.RefTable}(ret{sqlStoredProcedure.TableName});");
+                {
+                    //Remove Id from the name to ensure when multiple FK's reference the same column we dont generate duplicates
+                    var nonIdName = constraint.Column.Substring(0, constraint.Column.Length - 2);
+                    sb.AppendLine($"    await Append{nonIdName}(ret{sqlStoredProcedure.TableName});");
+                }
 
                 sb.AppendLine($"    return ret{sqlStoredProcedure.TableName};");
                 sb.AppendLine("}");

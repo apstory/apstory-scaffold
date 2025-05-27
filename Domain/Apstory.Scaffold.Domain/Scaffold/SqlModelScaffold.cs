@@ -141,7 +141,10 @@ namespace Apstory.Scaffold.Domain.Scaffold
             // Add properties for foreign keys (based on constraints)
             foreach (var constraint in sqlTable.Constraints.Where(c => c.ConstraintType == Model.Enum.ConstraintType.ForeignKey))
             {
-                var fkProperty = SyntaxFactory.PropertyDeclaration(SyntaxFactory.ParseTypeName(constraint.RefTable), constraint.RefTable)
+                //Remove Id from the name to ensure when multiple FK's reference the same column we dont generate duplicates
+                var nonIdName = constraint.Column.Substring(0, constraint.Column.Length - 2);
+
+                var fkProperty = SyntaxFactory.PropertyDeclaration(SyntaxFactory.ParseTypeName(constraint.RefTable), nonIdName)
                                               .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                                               .AddAccessorListAccessors(
                                                   SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
