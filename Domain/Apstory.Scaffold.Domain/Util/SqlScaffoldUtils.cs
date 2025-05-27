@@ -40,7 +40,7 @@ namespace Apstory.Scaffold.Domain.Util
             };
         }
 
-        public static string ToCSharpTypeString(this SqlColumn column, bool forceNullable = false)
+        public static string ToCSharpTypeString(this SqlColumn column, bool forceNullable)
         {
             string csharpType = column.DataType.ToLower() switch
             {
@@ -58,6 +58,7 @@ namespace Apstory.Scaffold.Domain.Util
                 "udtt_tinyints" => "List<byte>",
                 "udtt_uniqueidentifiers" => "List<Guid>",
                 "uniqueidentifier" => "Guid",
+                "geography" => "GeoLocation",
                 _ => throw new Exception($"ToCSharpTypeString lookup exception: {column.DataType}")
             };
 
