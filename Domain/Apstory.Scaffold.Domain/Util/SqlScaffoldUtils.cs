@@ -59,6 +59,7 @@ namespace Apstory.Scaffold.Domain.Util
                 "udtt_uniqueidentifiers" => "List<Guid>",
                 "uniqueidentifier" => "Guid",
                 "geography" => "GeoLocation",
+                "time" => "TimeOnly",
                 _ => throw new Exception($"ToCSharpTypeString lookup exception: {column.DataType}")
             };
 

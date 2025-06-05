@@ -25,17 +25,17 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 await _lockingService.AcquireLockAsync(_config.SqlProjectFile);
 
                 XDocument doc = XDocument.Load(_config.SqlProjectFile);
-                XNamespace ns = "http://schemas.microsoft.com/developer/msbuild/2003";
+                //XNamespace ns = "http://schemas.microsoft.com/developer/msbuild/2003";
 
                 //Find or Add ItemGroup to put Build includes into
-                var itemGroup = doc.Descendants(ns + "ItemGroup").FirstOrDefault(group => group.Elements(ns + "Build").Any());
+                var itemGroup = doc.Descendants("ItemGroup").FirstOrDefault(group => group.Elements("Build").Any());
                 if (itemGroup is null)
                 {
-                    itemGroup = new XElement(ns + "ItemGroup");
+                    itemGroup = new XElement("ItemGroup");
                     doc.Root.Add(itemGroup);
                 }
 
-                var allBuildEntries = doc.Descendants(ns + "Build");
+                var allBuildEntries = doc.Descendants("Build");
                 foreach (var path in newPaths)
                 {
                     var normalizedPath = path.Replace($"{_config.Directories.DBDirectory}\\", string.Empty);
@@ -45,7 +45,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
                     if (!exists)
                     {
-                        itemGroup.Add(new XElement(ns + "Build", new XAttribute("Include", normalizedPath)));
+                        itemGroup.Add(new XElement("Build", new XAttribute("Include", normalizedPath)));
                         result = ScaffoldResult.Updated;
                     }
                 }
