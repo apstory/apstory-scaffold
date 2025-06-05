@@ -23,15 +23,26 @@ namespace Apstory.Scaffold.Domain.Parser
                 table.TableName = tableMatch.Groups[2].Value.ToPascalCase();
             }
 
+            //Only take the part that creates the table
+            var lowercaseSql = sql.ToLower();
+            var firstCreateIdx = lowercaseSql.IndexOf("create ");
+            lowercaseSql = lowercaseSql.Substring(firstCreateIdx + 6, lowercaseSql.Length-6);
+            var secondCreateIdx = lowercaseSql.IndexOf("create ");
+
+            string tableCreationSql = sql;
+            if (secondCreateIdx > -1)
+                tableCreationSql = sql.Substring(0, secondCreateIdx + 6);
+
             // Regex pattern to match single-line and multi-line comments
             string pattern = @"(--.*?$)|(/\*.*?\*/)";
-            string cleanedSql = Regex.Replace(sql, pattern, "", RegexOptions.Multiline | RegexOptions.Singleline);
+            string cleanedSql = Regex.Replace(tableCreationSql, pattern, "", RegexOptions.Multiline | RegexOptions.Singleline);
 
             var lines = cleanedSql.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
             var columnLines = lines.Where(line => line.Trim().EndsWith("NULL", StringComparison.OrdinalIgnoreCase) ||
                                           line.Trim().EndsWith("NULL,", StringComparison.OrdinalIgnoreCase))
                                    .ToList();
+
 
             // Define regex to extract column details
             var columnRegex = new Regex(@"\[(\w+)\]\s*(\w+)\s?(\(?\d+\))?.*?(DEFAULT\s*\(.*\))?\s*(NOT\s+NULL|NULL)", RegexOptions.IgnoreCase);
