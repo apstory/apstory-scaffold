@@ -82,6 +82,8 @@ namespace Apstory.Scaffold.App.Worker
 
                     foreach (var tablePath in allTablePaths)
                     {
+                        if(tablePath.ToLower().Contains("dbup"))
+                            continue;
                         await RegenerateTable(tablePath);
                         await RegenerateTableStoredProcedures(tablePath);
                     }
