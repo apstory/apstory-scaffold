@@ -39,10 +39,8 @@ namespace Apstory.Scaffold.Domain.Parser
 
             var lines = cleanedSql.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
-            var columnLines = lines.Where(line => line.Trim().EndsWith("NULL", StringComparison.OrdinalIgnoreCase) ||
-                                          line.Trim().EndsWith("NULL,", StringComparison.OrdinalIgnoreCase))
-                                   .ToList();
-
+            var columnLines = lines.Where(line => !line.Trim().Contains(" KEY ") &&
+                                                  !line.Trim().Contains(" UNIQUE "));
 
             // Define regex to extract column details
             var columnRegex = new Regex(@"\[(\w+)\]\s*(\w+)\s?(\(?\d+\))?.*?(DEFAULT\s*\(.*\))?\s*(NOT\s+NULL|NULL)", RegexOptions.IgnoreCase);
