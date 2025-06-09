@@ -1,4 +1,5 @@
 ﻿using Apstory.Scaffold.Model.Sql;
+using System.Data.Common;
 using System.Text;
 
 namespace Apstory.Scaffold.Domain.Scaffold
@@ -347,8 +348,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             var sortedColumns = GetSortedColumnsByNullableDefaultType(table);
             var foreignColumns = sortedColumns.Where(col => IsForeignKey(col, table)).ToList();
+            var geoOrderingColumn = sortedColumns.FirstOrDefault(s => s.DataType.Equals("geography", StringComparison.InvariantCultureIgnoreCase));
 
             sb.Append("  (");
+            if (geoOrderingColumn is not null)
+                sb.Append($"@{geoOrderingColumn.ColumnName} {geoOrderingColumn.DataType.ToUpper()}=NULL,");
+
             foreach (var column in foreignColumns)
                 sb.Append($"@{column.ColumnName} {column.DataType}=NULL,");
 
@@ -378,6 +383,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine();
 
             sb.AppendLine("    ORDER BY");
+            if (geoOrderingColumn is not null)
+                sb.AppendLine("    CASE WHEN @GeoLocation IS NOT NULL THEN GeoLocation.STDistance(@GeoLocation) END ASC,");
             sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine($"    OFFSET @PageSize * (@PageNumber - 1) ROWS FETCH NEXT @PageSize ROWS ONLY),");
 
@@ -398,6 +405,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine($"    SELECT TotalRows, [{table.Schema}].[{table.TableName}].* FROM [{table.Schema}].[{table.TableName}], CTE_TotalRows");
             sb.AppendLine($"    WHERE EXISTS (SELECT 1 FROM CTE_{table.TableName} WHERE CTE_{table.TableName}.{primaryColumn.ColumnName} = [{table.Schema}].[{table.TableName}].{primaryColumn.ColumnName})");
             sb.AppendLine("    ORDER BY");
+            if (geoOrderingColumn is not null)
+                sb.AppendLine("    CASE WHEN @GeoLocation IS NOT NULL THEN GeoLocation.STDistance(@GeoLocation) END ASC,");
             sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine("    OPTION (RECOMPILE);");
             sb.AppendLine("  END");
@@ -416,6 +425,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine(" AND IsActive = @IsActive");
 
             sb.AppendLine("    ORDER BY");
+            if (geoOrderingColumn is not null)
+                sb.AppendLine("    CASE WHEN @GeoLocation IS NOT NULL THEN GeoLocation.STDistance(@GeoLocation) END ASC,");
             sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine($"    OFFSET @PageSize * (@PageNumber - 1) ROWS FETCH NEXT @PageSize ROWS ONLY),");
 
@@ -436,6 +447,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine($"    SELECT TotalRows, [{table.Schema}].[{table.TableName}].* FROM [{table.Schema}].[{table.TableName}], CTE_TotalRows");
             sb.AppendLine($"    WHERE EXISTS (SELECT 1 FROM CTE_{table.TableName} WHERE CTE_{table.TableName}.{primaryColumn.ColumnName} = [{table.Schema}].[{table.TableName}].{primaryColumn.ColumnName})");
             sb.AppendLine("    ORDER BY");
+            if (geoOrderingColumn is not null)
+                sb.AppendLine("    CASE WHEN @GeoLocation IS NOT NULL THEN GeoLocation.STDistance(@GeoLocation) END ASC,");
             sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine("    OPTION (RECOMPILE);");
             sb.AppendLine("  END");
