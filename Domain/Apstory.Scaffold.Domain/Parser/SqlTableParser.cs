@@ -101,7 +101,7 @@ namespace Apstory.Scaffold.Domain.Parser
 
 
             // Match indexes
-            var indexMatches = Regex.Matches(cleanedSql, @"CREATE\s+(UNIQUE\s+)?(CLUSTERED|NONCLUSTERED)\s+INDEX\s+\[([^\]]+)\]\s+ON\s+\[\w+\]\.\[([^\]]+)\]\(\[([^\]]+)\]");
+            var indexMatches = Regex.Matches(sql, @"CREATE\s+(UNIQUE\s+)?(CLUSTERED|NONCLUSTERED)\s+INDEX\s+\[([^\]]+)\]\s+ON\s+\[\w+\]\.\[([^\]]+)\]\(\[([^\]]+)\]");
             foreach (Match indexMatch in indexMatches)
             {
                 table.Indexes.Add(new SqlIndex
