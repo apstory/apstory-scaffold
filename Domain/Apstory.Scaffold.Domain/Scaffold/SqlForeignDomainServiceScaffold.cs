@@ -257,6 +257,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var columnName = constraint.Column;
             var modelNs = GetModelNamespace(sqlTable.Schema);
             var column = sqlTable.Columns.FirstOrDefault(s => s.ColumnName == constraint.Column);
+            var safeTableName = tableName.ToCSharpSafeKeyword();
 
             // Use StringBuilder to construct the method as a string
             var methodBuilder = new StringBuilder();
@@ -272,9 +273,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             methodBuilder.AppendLine($"    var distinct{refTable}s = await _{refTable.ToCamelCase()}Repo.Get{refTable}By{refTable}Ids(distinct{columnName}s, null);");
             methodBuilder.AppendLine();
-            methodBuilder.AppendLine($"    foreach (var {tableName.ToCamelCase()} in {tableName.ToCamelCase()}s)");
+            methodBuilder.AppendLine($"    foreach (var {safeTableName} in {tableName.ToCamelCase()}s)");
             methodBuilder.AppendLine("    {");
-            methodBuilder.AppendLine($"        {tableName.ToCamelCase()}.{nonIdName} = distinct{refTable}s.FirstOrDefault(s => s.{constraint.RefColumn} == {tableName.ToCamelCase()}.{columnName});");
+            methodBuilder.AppendLine($"        {safeTableName}.{nonIdName} = distinct{refTable}s.FirstOrDefault(s => s.{constraint.RefColumn} == {safeTableName}.{columnName});");
             methodBuilder.AppendLine("    }");
             methodBuilder.AppendLine();
             methodBuilder.AppendLine($"    return {tableName.ToCamelCase()}s;");

@@ -86,5 +86,13 @@ namespace Apstory.Scaffold.Domain.Util
 
             return schema;
         }
+
+        public static string ToCSharpSafeKeyword(this string tableName)
+        {
+            if (tableName.ToCamelCase() == "event") //We cant use c# keywords like event
+                return "evt";
+
+            return tableName.ToCamelCase();
+        }
     }
 }

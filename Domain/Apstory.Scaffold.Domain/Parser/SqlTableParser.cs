@@ -26,7 +26,7 @@ namespace Apstory.Scaffold.Domain.Parser
             //Only take the part that creates the table
             var lowercaseSql = sql.ToLower();
             var firstCreateIdx = lowercaseSql.IndexOf("create ");
-            lowercaseSql = lowercaseSql.Substring(firstCreateIdx + 6, lowercaseSql.Length-6);
+            lowercaseSql = lowercaseSql.Substring(firstCreateIdx + 6, lowercaseSql.Length - 6);
             var secondCreateIdx = lowercaseSql.IndexOf("create ");
 
             string tableCreationSql = sql;
@@ -39,8 +39,12 @@ namespace Apstory.Scaffold.Domain.Parser
 
             var lines = cleanedSql.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
-            var columnLines = lines.Where(line => !line.Trim().Contains(" KEY ") &&
-                                                  !line.Trim().Contains(" UNIQUE "));
+            var columnLines = lines.Where(line => !line.Trim().Contains(" KEY ", StringComparison.InvariantCultureIgnoreCase) &&
+                                                  !line.Trim().Contains(" UNIQUE ", StringComparison.InvariantCultureIgnoreCase) &&
+                                                  !line.Trim().Equals("GO", StringComparison.InvariantCultureIgnoreCase))
+                                   .Skip(1) //Skip first the Create Table line
+                                   .Select(s => s.Trim('(', ')', ';', ','))
+                                   .Where(s => !string.IsNullOrWhiteSpace(s));
 
             // Define regex to extract column details
             var columnRegex = new Regex(@"\[(\w+)\]\s*(\w+)\s?(\(?\d+\))?.*?(DEFAULT\s*\(.*\))?\s*(NOT\s+NULL|NULL)", RegexOptions.IgnoreCase);
@@ -48,7 +52,7 @@ namespace Apstory.Scaffold.Domain.Parser
             // Parse columns
             foreach (var line in columnLines)
             {
-                var match = columnRegex.Match(line.Trim());
+                var match = columnRegex.Match(line.Trim().Replace("[sys].[geography]", "Geography"));
                 var column = new SqlColumn
                 {
                     ColumnName = match.Groups[1].Value,

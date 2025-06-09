@@ -279,7 +279,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine(")");
             }
             else
-                sb.Append($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()})");
+                sb.Append($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCSharpSafeKeyword()})");
 
             sb.AppendLine("{");
 
@@ -308,7 +308,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     else if (param.DataType.StartsWith("GeoLocation", StringComparison.OrdinalIgnoreCase))
                         sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {param.ColumnName.ToCamelCase()}.ToString());");
                     else
-                        sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {(!useSeperateParameters ? $"{sqlStoredProcedure.TableName.ToCamelCase()}.{param.ColumnName.ToPascalCase()}" : param.ColumnName.ToCamelCase())});");
+                        sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {(!useSeperateParameters ? $"{sqlStoredProcedure.TableName.ToCSharpSafeKeyword()}.{param.ColumnName.ToPascalCase()}" : param.ColumnName.ToCamelCase())});");
                 }
             }
 
