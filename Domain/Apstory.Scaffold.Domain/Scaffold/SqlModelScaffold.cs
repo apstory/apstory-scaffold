@@ -90,15 +90,16 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
         private string GenerateCSharpModel(SqlTable sqlTable)
         {
-            var primaryConstraint = sqlTable.Constraints.FirstOrDefault(s => s.ConstraintType == ConstraintType.PrimaryKey);
+            var primaryConstraint =
+                sqlTable.Constraints.FirstOrDefault(s => s.ConstraintType == ConstraintType.PrimaryKey);
 
             if (primaryConstraint is null)
                 throw new Exception($"No primary constraint found in table {sqlTable.TableName}");
 
             // Create a class declaration
             var classDeclaration = SyntaxFactory.ClassDeclaration(sqlTable.TableName)
-                                                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
-                                                              SyntaxFactory.Token(SyntaxKind.PartialKeyword));
+                .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword),
+                    SyntaxFactory.Token(SyntaxKind.PartialKeyword));
 
             var totalRowsColumn = new SqlColumn()
             {
@@ -135,28 +136,41 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                     .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)))));
                 }
 
+                if (column.DataType == "GEOGRAPHY")
+                {
+                    property = property.AddAttributeLists(
+                        SyntaxFactory.AttributeList(
+                            SyntaxFactory.SingletonSeparatedList(
+                                SyntaxFactory.Attribute(
+                                    SyntaxFactory.IdentifierName("Newtonsoft.Json.JsonIgnore")))));
+                }
+
                 classDeclaration = classDeclaration.AddMembers(property);
             }
 
             // Add properties for foreign keys (based on constraints)
-            foreach (var constraint in sqlTable.Constraints.Where(c => c.ConstraintType == Model.Enum.ConstraintType.ForeignKey))
+            foreach (var constraint in sqlTable.Constraints.Where(c =>
+                         c.ConstraintType == Model.Enum.ConstraintType.ForeignKey))
             {
                 //Remove Id from the name to ensure when multiple FK's reference the same column we dont generate duplicates
                 var nonIdName = constraint.Column.Substring(0, constraint.Column.Length - 2);
 
-                var fkProperty = SyntaxFactory.PropertyDeclaration(SyntaxFactory.ParseTypeName(constraint.RefTable+"?"), nonIdName)
-                                              .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
-                                              .AddAccessorListAccessors(
-                                                  SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
-                                                      .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
-                                                  SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
-                                                      .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
+                var fkProperty = SyntaxFactory
+                    .PropertyDeclaration(SyntaxFactory.ParseTypeName(constraint.RefTable + "?"), nonIdName)
+                    .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
+                    .AddAccessorListAccessors(
+                        SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)
+                            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                        SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration)
+                            .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.SemicolonToken)));
 
                 classDeclaration = classDeclaration.AddMembers(fkProperty);
             }
 
             // Wrap the class in the provided namespace
-            var namespaceDeclaration = SyntaxFactory.NamespaceDeclaration(SyntaxFactory.ParseName(_config.Namespaces.ModelNamespace.ToSchemaString(sqlTable.Schema)))
+            var namespaceDeclaration = SyntaxFactory
+                .NamespaceDeclaration(
+                    SyntaxFactory.ParseName(_config.Namespaces.ModelNamespace.ToSchemaString(sqlTable.Schema)))
                 .AddMembers(classDeclaration);
 
             // Create the syntax tree

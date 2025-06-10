@@ -58,7 +58,7 @@ namespace Apstory.Scaffold.Domain.Util
                 "udtt_tinyints" => "List<byte>",
                 "udtt_uniqueidentifiers" => "List<Guid>",
                 "uniqueidentifier" => "Guid",
-                "geography" => (!string.IsNullOrWhiteSpace(modelNamespace) ? $"{modelNamespace}.GeoLocation" : "GeoLocation"),
+                "geography" => "Microsoft.SqlServer.Types.SqlGeography", //(!string.IsNullOrWhiteSpace(modelNamespace) ? $"{modelNamespace}.GeoLocation" : "GeoLocation"),
                 "time" => "TimeSpan",
                 _ => throw new Exception($"ToCSharpTypeString lookup exception: {column.DataType}")
             };
