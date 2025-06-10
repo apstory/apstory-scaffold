@@ -7,8 +7,12 @@ namespace Apstory.Scaffold.Domain.Parser
 {
     public static class SqlTableParser
     {
-        public static SqlTable Parse(string sql)
+        private static Dictionary<string, List<SqlFullTextIndex>>? FullTextIndexes { get; set; }
+
+        public static SqlTable Parse(string sqlTablePath, string sql)
         {
+            InitializeFullTextIndexes(sqlTablePath);
+
             var table = new SqlTable();
 
             var procedureMatch = Regex.Match(sql, @"CREATE\s+PROCEDURE\s+\[([^\]]+)\]\.\[([^\]]+)\]");
@@ -128,7 +132,65 @@ namespace Apstory.Scaffold.Domain.Parser
                 table.Constraints.Add(primaryKeyConstraint);
             }
 
+            if (FullTextIndexes.ContainsKey($"{table.Schema}.{table.TableName}"))
+                table.FullTextIndexes = FullTextIndexes[$"{table.Schema}.{table.TableName}"];
+
             return table;
+        }
+
+        private static void InitializeFullTextIndexes(string sqlPath)
+        {
+            if (FullTextIndexes is not null)
+                return;
+
+            FullTextIndexes = new Dictionary<string, List<SqlFullTextIndex>>();
+
+            string objectDirPath = Path.GetDirectoryName(sqlPath);
+            string schemaDirPath = Path.GetDirectoryName(objectDirPath);
+            string projectPath = Path.GetDirectoryName(schemaDirPath);
+
+            var fullTextFile = Path.Combine(projectPath, "FullTextIndexes.sql");
+            if (!File.Exists(fullTextFile))
+                return;
+
+            var fileContent = File.ReadAllText(fullTextFile);
+            var fullTextSections = fileContent.Split($"{Environment.NewLine}GO{Environment.NewLine}");
+
+            foreach (var section in fullTextSections)
+            {
+                var match = Regex.Match(section,
+                @"CREATE\s+FULLTEXT\s+INDEX\s+ON\s+\[([^\]]+)\]\.\[([^\]]+)\]\s*\((.*?)\)\s+KEY\s+INDEX\s+\[([^\]]+)\]\s+ON\s+\[([^\]]+)\];",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline); // Use Singleline for dotall behavior across lines
+
+                if (match.Success)
+                {
+                    var schema = match.Groups[1].Value;
+                    var tableName = match.Groups[2].Value;
+                    var columnsRaw = match.Groups[3].Value;
+                    var keyIndexName = match.Groups[4].Value; // This is your "PK_User"
+                    var fullTextCatalogName = match.Groups[5].Value; // This is your "ftc_User"
+
+                    var columns = columnsRaw.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                            .Select(c =>
+                                            {
+                                                // Remove LANGUAGE 1033 part and trim
+                                                var columnPart = Regex.Replace(c, @"\s+LANGUAGE\s+\d+", "").Trim();
+                                                return columnPart.Trim('[').Trim(']');
+                                            })
+                                            .ToList();
+
+                    var ftiKey = $"{schema}.{tableName}";
+                    if (!FullTextIndexes.ContainsKey(ftiKey))
+                        FullTextIndexes[ftiKey] = new List<SqlFullTextIndex>();
+
+                    FullTextIndexes[ftiKey].Add(new SqlFullTextIndex
+                    {
+                        IndexName = keyIndexName,
+                        IndexType = "FULLTEXT",
+                        Columns = columns
+                    });
+                }
+            }
         }
     }
 }

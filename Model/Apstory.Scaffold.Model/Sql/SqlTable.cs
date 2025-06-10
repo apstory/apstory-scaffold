@@ -7,5 +7,6 @@
         public List<SqlColumn> Columns { get; set; } = new();
         public List<SqlConstraint> Constraints { get; set; } = new();
         public List<SqlIndex> Indexes { get; set; } = new();
+        public List<SqlFullTextIndex> FullTextIndexes { get; set; } = new();
     }
 }

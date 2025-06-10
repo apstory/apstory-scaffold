@@ -37,7 +37,7 @@ namespace Apstory.Scaffold.Domain.Service
                 var tableStr = FileUtils.SafeReadAllText(tablePath);
                 Logger.LogDebug($"Read [{Path.GetFileName(tablePath)}]");
 
-                var sqlTable = SqlTableParser.Parse(tableStr);
+                var sqlTable = SqlTableParser.Parse(tablePath, tableStr);
                 Logger.LogDebug($"Parsed [{Path.GetFileName(tablePath)}]");
 
                 var expirationTime = DateTimeOffset.Now.AddDays(1);

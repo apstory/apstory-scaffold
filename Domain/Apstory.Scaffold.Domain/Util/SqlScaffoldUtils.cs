@@ -40,7 +40,7 @@ namespace Apstory.Scaffold.Domain.Util
             };
         }
 
-        public static string ToCSharpTypeString(this SqlColumn column, bool forceNullable)
+        public static string ToCSharpTypeString(this SqlColumn column, bool forceNullable, string modelNamespace)
         {
             string csharpType = column.DataType.ToLower() switch
             {
@@ -58,7 +58,7 @@ namespace Apstory.Scaffold.Domain.Util
                 "udtt_tinyints" => "List<byte>",
                 "udtt_uniqueidentifiers" => "List<Guid>",
                 "uniqueidentifier" => "Guid",
-                "geography" => "GeoLocation",
+                "geography" => (!string.IsNullOrWhiteSpace(modelNamespace) ? $"{modelNamespace}.GeoLocation" : "GeoLocation"),
                 "time" => "TimeOnly",
                 _ => throw new Exception($"ToCSharpTypeString lookup exception: {column.DataType}")
             };

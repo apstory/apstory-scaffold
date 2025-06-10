@@ -148,7 +148,7 @@ namespace Apstory.Scaffold.App.Worker
             {
                 //TLDR: this is too much work, we will simply try create the table if it does not exist:
                 var createTableScript = FileUtils.SafeReadAllText(tablePath);
-                var tableInfo = SqlTableParser.Parse(createTableScript);
+                var tableInfo = SqlTableParser.Parse(tablePath, createTableScript);
 
                 bool tableExists = await ExecuteCheckIfTableExists(connectionString, tableInfo.Schema, tableInfo.TableName);
 

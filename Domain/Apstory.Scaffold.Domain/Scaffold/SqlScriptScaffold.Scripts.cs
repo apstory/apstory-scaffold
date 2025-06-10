@@ -608,6 +608,89 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sb.ToString();
         }
 
+
+        public string GenerateGetBySearchProcedure(SqlTable table, SqlFullTextIndex fullTextIndex)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetBySearch] ******/");
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine("-- Description    : Select By Search " + table.TableName);
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine();
+
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBySearch]");
+            sb.AppendLine($"  (@SearchCriteria nvarchar(255), @IsActive bit=NULL)");
+
+            sb.AppendLine("AS");
+            sb.AppendLine("BEGIN");
+            sb.AppendLine("  SET NOCOUNT ON;");
+            sb.AppendLine("  SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;");
+            sb.AppendLine();
+            sb.AppendLine("  IF (@SearchCriteria <> '' OR @SearchCriteria IS NOT NULL)");
+            sb.AppendLine("  BEGIN");
+            sb.AppendLine("    SET @SearchCriteria = '\"' + @SearchCriteria + '*\"'");
+            sb.AppendLine("  END");
+            sb.AppendLine("  ELSE");
+            sb.AppendLine("  BEGIN");
+            sb.AppendLine("    SET @SearchCriteria = '\"\"'");
+            sb.AppendLine("  END");
+            sb.AppendLine();
+            sb.AppendLine($"  SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE IsActive = @IsActive");
+            sb.Append($"  AND (");
+
+            foreach (var col in fullTextIndex.Columns)
+                sb.Append($"(CONTAINS({col},@SearchCriteria)) OR ");
+
+            sb.Length -= 4;
+            sb.AppendLine($")");
+            sb.AppendLine("END");
+
+            return sb.ToString();
+        }
+
+        public string GenerateGetBySearchFreeTextProcedure(SqlTable table, SqlFullTextIndex fullTextIndex)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetBySearchFreeText] ******/");
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine("-- Description    : Select By SearchFreeText " + table.TableName);
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine();
+
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBySearchFreeText]");
+            sb.AppendLine($"  (@SearchCriteria nvarchar(255), @IsActive bit=NULL)");
+
+            sb.AppendLine("AS");
+            sb.AppendLine("BEGIN");
+            sb.AppendLine("  SET NOCOUNT ON;");
+            sb.AppendLine("  SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;");
+            sb.AppendLine();
+            sb.AppendLine("  IF (@SearchCriteria <> '' OR @SearchCriteria IS NOT NULL)");
+            sb.AppendLine("  BEGIN");
+            sb.AppendLine("    SET @SearchCriteria = '\"' + @SearchCriteria + '*\"'");
+            sb.AppendLine("  END");
+            sb.AppendLine("  ELSE");
+            sb.AppendLine("  BEGIN");
+            sb.AppendLine("    SET @SearchCriteria = '\"\"'");
+            sb.AppendLine("  END");
+            sb.AppendLine();
+            sb.AppendLine($"  SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE IsActive = @IsActive");
+            sb.Append($"  AND (");
+
+            foreach (var col in fullTextIndex.Columns)
+                sb.Append($"(FREETEXT({col},@SearchCriteria)) OR ");
+
+            sb.Length -= 4;
+            sb.AppendLine($")");
+
+            sb.AppendLine("END");
+
+            return sb.ToString();
+        }
+
+        #region Private Methods
         private bool IsForeignKey(SqlColumn column, SqlTable table)
         {
             // Check if the column is part of a foreign key constraint (you'll need to adjust this based on how foreign keys are represented in your data)
@@ -656,5 +739,6 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                 .ThenBy(s => columnIndexes[s.ColumnName])
                                 .ToList();
         }
+        #endregion
     }
 }
