@@ -270,9 +270,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     if (!param.ColumnName.Equals("RetMsg", StringComparison.OrdinalIgnoreCase))
                     {
                         if (!string.IsNullOrEmpty(param.DefaultValue))
-                            sb.Append($"{param.ToCSharpTypeString(returnsData, GetModelNamespace(sqlStoredProcedure))} {param.ColumnName.ToCamelCase()} = \"{param.DefaultValue}\",");
+                            sb.Append($"{param.ToCSharpTypeString(returnsData)} {param.ColumnName.ToCamelCase()} = \"{param.DefaultValue}\",");
                         else
-                            sb.Append($"{param.ToCSharpTypeString(returnsData, GetModelNamespace(sqlStoredProcedure))} {param.ColumnName.ToCamelCase()},");
+                            sb.Append($"{param.ToCSharpTypeString(returnsData)} {param.ColumnName.ToCamelCase()},");
                     }
 
                 sb.Remove(sb.Length - 1, 1);
@@ -305,27 +305,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 {
                     if (param.DataType.StartsWith("udtt", StringComparison.OrdinalIgnoreCase))
                         sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {param.ColumnName.ToCamelCase()}.ToDataTable().AsTableValuedParameter(\"{sqlStoredProcedure.Schema}.{param.DataType}\"));");
-                    else if (param.DataType.StartsWith("GeoLocation", StringComparison.OrdinalIgnoreCase))
-                        sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {param.ColumnName.ToCamelCase()}.ToString());");
                     else if (param.DataType.StartsWith("GEOGRAPHY", StringComparison.OrdinalIgnoreCase))
-                        if (sqlStoredProcedure.StoredProcedureName.Contains("InsUpd", StringComparison.OrdinalIgnoreCase))
-                        {
-                            if (sqlStoredProcedure.TableName.ToLower() == "event")
-                            {
-                                sb.AppendLine(
-                                    $"    dParams.Add(\"{param.ColumnName}\", $\"POINT({{evt.{param.ColumnName.ToPascalCase()}.Long.ToString().Replace(\",\", \".\")}} {{evt.{param.ColumnName.ToPascalCase()}.Lat.ToString().Replace(\",\", \".\")}} 4326)\");");   
-                            }
-                            else
-                            {
-                                sb.AppendLine(
-                                    $"    dParams.Add(\"{param.ColumnName}\", $\"POINT({{{sqlStoredProcedure.TableName.ToCamelCase()}.{param.ColumnName.ToPascalCase()}.Long.ToString().Replace(\",\", \".\")}} {{{sqlStoredProcedure.TableName.ToCamelCase()}.{param.ColumnName.ToPascalCase()}.Lat.ToString().Replace(\",\", \".\")}} 4326)\");");    
-                            }
-                        }
+                    {
+                        if (!useSeperateParameters)
+                            sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", $\"POINT({{{sqlStoredProcedure.TableName.ToCSharpSafeKeyword()}.{param.ColumnName.ToPascalCase()}.Long.ToString().Replace(\",\", \".\")}} {{{sqlStoredProcedure.TableName.ToCSharpSafeKeyword()}.{param.ColumnName.ToPascalCase()}.Lat.ToString().Replace(\",\", \".\")}} 4326)\");");
                         else
-                        {
-                            sb.AppendLine(
-                                $"    dParams.Add(\"{param.ColumnName}\", $\"POINT({{{param.ColumnName.ToCamelCase()}.Long.ToString().Replace(\",\", \".\")}} {{{param.ColumnName.ToCamelCase()}.Lat.ToString().Replace(\",\", \".\")}} 4326)\");");
-                        }
+                            sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", $\"POINT({{{param.ColumnName.ToCamelCase()}.Long.ToString().Replace(\",\", \".\")}} {{{param.ColumnName.ToCamelCase()}.Lat.ToString().Replace(\",\", \".\")}} 4326)\");");
+                    }
                     else
                         sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {(!useSeperateParameters ? $"{sqlStoredProcedure.TableName.ToCSharpSafeKeyword()}.{param.ColumnName.ToPascalCase()}" : param.ColumnName.ToCamelCase())});");
                 }

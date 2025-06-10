@@ -300,9 +300,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 foreach (var param in sqlStoredProcedure.Parameters)
                     if (!param.ColumnName.Equals("RetMsg", StringComparison.OrdinalIgnoreCase))
                         if (!string.IsNullOrEmpty(param.DefaultValue))
-                            sb.Append($"{param.ToCSharpTypeString(true, GetModelNamespace(sqlStoredProcedure.Schema))} {param.ColumnName.ToCamelCase()} = \"{param.DefaultValue}\",");
+                            sb.Append($"{param.ToCSharpTypeString(true)} {param.ColumnName.ToCamelCase()} = \"{param.DefaultValue}\",");
                         else
-                            sb.Append($"{param.ToCSharpTypeString(true, GetModelNamespace(sqlStoredProcedure.Schema))} {param.ColumnName.ToCamelCase()},");
+                            sb.Append($"{param.ToCSharpTypeString(true)} {param.ColumnName.ToCamelCase()},");
 
                 sb.Remove(sb.Length - 1, 1);
                 sb.AppendLine(")");
