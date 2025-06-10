@@ -59,7 +59,7 @@ namespace Apstory.Scaffold.Domain.Util
                 "udtt_uniqueidentifiers" => "List<Guid>",
                 "uniqueidentifier" => "Guid",
                 "geography" => (!string.IsNullOrWhiteSpace(modelNamespace) ? $"{modelNamespace}.GeoLocation" : "GeoLocation"),
-                "time" => "TimeOnly",
+                "time" => "TimeSpan",
                 _ => throw new Exception($"ToCSharpTypeString lookup exception: {column.DataType}")
             };
 
