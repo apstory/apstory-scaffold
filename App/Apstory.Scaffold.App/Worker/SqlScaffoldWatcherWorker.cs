@@ -21,7 +21,6 @@ namespace Apstory.Scaffold.App.Worker
         private readonly SqlDalRepositoryScaffold _sqlDalRepositoryScaffold;
         private readonly SqlScriptFileScaffold _sqlScriptFileScaffold;
         private readonly SqlModelScaffold _sqlModelScaffold;
-        private readonly SqlProjectScaffold _sqlProjectScaffold;
         private readonly SqlDalRepositoryInterfaceScaffold _sqlDalRepositoryInterfaceScaffold;
         private readonly SqlDomainServiceScaffold _sqlDomainServiceScaffold;
         private readonly SqlDomainServiceInterfaceScaffold _sqlDomainServiceInterfaceScaffold;
@@ -39,7 +38,6 @@ namespace Apstory.Scaffold.App.Worker
                                         SqlTableCachingService sqlTableCachingService,
                                         SqlDalRepositoryScaffold sqlDalRepositoryScaffold,
                                         SqlScriptFileScaffold sqlScriptFileScaffold,
-                                        SqlProjectScaffold sqlProjectScaffold,
                                         SqlModelScaffold sqlModelScaffold,
                                         SqlDalRepositoryInterfaceScaffold sqlDalRepositoryInterfaceScaffold,
                                         SqlDomainServiceScaffold sqlDomainServiceScaffold,
@@ -54,7 +52,6 @@ namespace Apstory.Scaffold.App.Worker
             _sqlTableCachingService = sqlTableCachingService;
             _sqlDalRepositoryScaffold = sqlDalRepositoryScaffold;
             _sqlScriptFileScaffold = sqlScriptFileScaffold;
-            _sqlProjectScaffold = sqlProjectScaffold;
             _sqlModelScaffold = sqlModelScaffold;
             _sqlDalRepositoryInterfaceScaffold = sqlDalRepositoryInterfaceScaffold;
             _sqlDomainServiceScaffold = sqlDomainServiceScaffold;
@@ -260,11 +257,6 @@ namespace Apstory.Scaffold.App.Worker
 
                     await _sqlModelScaffold.GenerateCode(tableInfo);
                     var scriptResults = await _sqlScriptFileScaffold.GenerateCode(tableInfo, _configuration["variant"]);
-
-                    //Add any newly created files into the sqlproj
-                    var newScripts = scriptResults.Where(s => s.ScaffoldResult == Model.Enum.ScaffoldResult.Created).ToList();
-                    if (newScripts.Any())
-                        await _sqlProjectScaffold.GenerateCode(newScripts.Select(s => s.FilePath).ToList());
                 }
 
                 if (e.ChangeType == WatcherChangeTypes.Deleted)
