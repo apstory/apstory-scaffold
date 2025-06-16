@@ -105,7 +105,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 ColumnName = "TotalRows",
                 DataType = "INT",
-                IsNullable = false,
+                IsNullable = true,
             };
 
             var columnsToAdd = sqlTable.Columns.Union([totalRowsColumn]);
@@ -113,9 +113,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 if (column.ColumnName == primaryConstraint.Column)
                     column.IsNullable = true;
-
+                
+                var typeName = column.ToCSharpTypeString(false);
+                 if (!typeName.EndsWith("?") && typeName == "string")
+                     typeName += "?";
+                
                 var property = SyntaxFactory.PropertyDeclaration(
-                        SyntaxFactory.ParseTypeName(column.ToCSharpTypeString(false)), column.ColumnName)
+                        SyntaxFactory.ParseTypeName(typeName), column.ColumnName)
                     .AddModifiers(SyntaxFactory.Token(SyntaxKind.PublicKeyword))
                     .AddAccessorListAccessors(
                         SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration)

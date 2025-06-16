@@ -1,6 +1,7 @@
 ﻿using Apstory.Scaffold.Model.Sql;
 using System.Data.Common;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Apstory.Scaffold.Domain.Scaffold
 {
@@ -31,7 +32,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var sortedColumnsNoDtNoPK = sortedColumnsNoDt.Where(s => s.ColumnName != primaryColumn.ColumnName).ToList();
 
             foreach (var column in sortedColumnsNoDt)
-                sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}{((column.IsNullable || column.ColumnName == primaryColumn.ColumnName) ? "=NULL" : "")},");
+            {
+                var match = Regex.Match(column.DefaultValue, @"DEFAULT\s*\(\(\s*(\d+)\s*\)\)");
+                if (match.Success)
+                    sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}{((column.IsNullable || column.ColumnName == primaryColumn.ColumnName) ? "=NULL" : $"={match.Groups[1].Value}")},");
+                else
+                    sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}{((column.IsNullable || column.ColumnName == primaryColumn.ColumnName) ? "=NULL" : "")},");   
+            }
+                
 
             sb.Append("@RetMsg NVARCHAR(MAX) OUTPUT");
             sb.AppendLine(")");
