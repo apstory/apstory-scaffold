@@ -60,6 +60,8 @@ namespace Apstory.Scaffold.Domain.Util
                 "uniqueidentifier" => "Guid",
                 "geography" => "Microsoft.SqlServer.Types.SqlGeography",
                 "time" => "TimeSpan",
+                "rowversion" => "byte[]",
+                "char" => "string",
                 _ => throw new Exception($"ToCSharpTypeString lookup exception: {column.DataType}")
             };
 

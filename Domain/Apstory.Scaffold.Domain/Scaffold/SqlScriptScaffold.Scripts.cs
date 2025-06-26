@@ -709,7 +709,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             // Identify the primary key column
             var primaryKeyColumn = table.Constraints.FirstOrDefault(c => c.ConstraintType == Model.Enum.ConstraintType.PrimaryKey)?.Column;
-            if (primaryKeyColumn == null)
+            if (primaryKeyColumn == null || primaryKeyColumn == string.Empty)
                 throw new InvalidOperationException("No primary key column found for table " + table.TableName);
 
             // Get primary key column details
