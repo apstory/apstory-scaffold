@@ -57,7 +57,6 @@ namespace Apstory.Scaffold.VisualStudio
 
             try
             {
-
                 var solutionDirectory = GetSolutionDirectory();
                 Log($"Executing Code Scaffold in {solutionDirectory} using {this.config.SqlDestination}");
 
@@ -109,8 +108,8 @@ namespace Apstory.Scaffold.VisualStudio
 
             try
             {
-                var solutionDirectory = GetSolutionDirectory();
                 var activeDocPath = GetActiveDocumentPath();
+                var workingDirectory = FindClosestSolutionFolder(activeDocPath);
                 var fileName = Path.GetFileName(activeDocPath);
                 if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
                 {
@@ -118,12 +117,12 @@ namespace Apstory.Scaffold.VisualStudio
                     return;
                 }
 
-                Log($"Executing Code Scaffold for {fileName} in {solutionDirectory}");
+                Log($"Executing Code Scaffold for {fileName} in {workingDirectory}");
                 var schema = GetSchemaFromPath(activeDocPath);
                 var tableOrProc = fileName.Replace(".sql", string.Empty);
 
                 // Run the process on a background thread
-                var logs = await Task.Run(() => ExecuteScaffolding($"{schema}.{tableOrProc}", solutionDirectory));
+                var logs = await Task.Run(() => ExecuteScaffolding($"{schema}.{tableOrProc}", workingDirectory));
 
                 // Return to the UI thread for logging
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -171,8 +170,8 @@ namespace Apstory.Scaffold.VisualStudio
 
             try
             {
-                var solutionDirectory = GetSolutionDirectory();
                 var activeDocPath = GetActiveDocumentPath();
+                var workingDirectory = FindClosestSolutionFolder(activeDocPath);
                 var fileName = Path.GetFileName(activeDocPath);
                 if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
                 {
@@ -180,12 +179,12 @@ namespace Apstory.Scaffold.VisualStudio
                     return;
                 }
 
-                Log($"Executing Deletion for {fileName} in {solutionDirectory}");
+                Log($"Executing Deletion for {fileName} in {workingDirectory}");
                 var schema = GetSchemaFromPath(activeDocPath);
                 var tableOrProc = fileName.Replace(".sql", string.Empty);
 
                 // Run the process on a background thread
-                var logs = await Task.Run(() => ExecuteSQLDelete($"{schema}.{tableOrProc}", solutionDirectory));
+                var logs = await Task.Run(() => ExecuteSQLDelete($"{schema}.{tableOrProc}", workingDirectory));
 
                 // Return to the UI thread for logging
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -240,8 +239,8 @@ namespace Apstory.Scaffold.VisualStudio
 
             try
             {
-                var solutionDirectory = GetSolutionDirectory();
                 var selectedPaths = GetSelectedItemPaths();
+                var workingDirectory = FindClosestSolutionFolder(selectedPaths.First());
                 List<string> toUpdate = new List<string>();
                 foreach (var path in selectedPaths)
                 {
@@ -258,10 +257,10 @@ namespace Apstory.Scaffold.VisualStudio
                 }
 
                 var scaffoldArgs = string.Join(";", toUpdate.ToArray());
-                Log($"Executing Code Scaffold for {scaffoldArgs} in {solutionDirectory} using {this.config.SqlDestination}");
+                Log($"Executing Code Scaffold for {scaffoldArgs} in {workingDirectory} using {this.config.SqlDestination}");
 
                 // Run the process on a background thread
-                var logs = await Task.Run(() => ExecuteSqlUpdate(scaffoldArgs, solutionDirectory));
+                var logs = await Task.Run(() => ExecuteSqlUpdate(scaffoldArgs, workingDirectory));
 
                 // Return to the UI thread for logging
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -297,7 +296,6 @@ namespace Apstory.Scaffold.VisualStudio
         private async void ExecuteContextMenuCodeScaffoldAsync(object sender, EventArgs e)
         {
             await this.LoadConfigAsync();
-            var solutionDirectory = GetSolutionDirectory();
             var selectedPaths = GetSelectedItemPaths();
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -312,7 +310,7 @@ namespace Apstory.Scaffold.VisualStudio
 
             try
             {
-
+                var workingDirectory = FindClosestSolutionFolder(selectedPaths.First());
                 List<string> toScaffold = new List<string>();
                 foreach (var path in selectedPaths)
                 {
@@ -329,10 +327,10 @@ namespace Apstory.Scaffold.VisualStudio
                 }
 
                 var scaffoldArgs = string.Join(";", toScaffold.ToArray());
-                Log($"Executing Code Scaffold for {scaffoldArgs} in {solutionDirectory}");
+                Log($"Executing Code Scaffold for {scaffoldArgs} in {workingDirectory}");
 
                 // Run the process on a background thread
-                var logs = await Task.Run(() => ExecuteScaffolding(scaffoldArgs, solutionDirectory));
+                var logs = await Task.Run(() => ExecuteScaffolding(scaffoldArgs, workingDirectory));
 
                 // Return to the UI thread for logging
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -368,8 +366,8 @@ namespace Apstory.Scaffold.VisualStudio
         private async void ExecuteContextMenuSqlDeleteAsync(object sender, EventArgs e)
         {
             await this.LoadConfigAsync();
-            var solutionDirectory = GetSolutionDirectory();
             var selectedPaths = GetSelectedItemPaths();
+            var workingDirectory = FindClosestSolutionFolder(selectedPaths.First());
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (isSqlDeleting)
@@ -399,10 +397,10 @@ namespace Apstory.Scaffold.VisualStudio
                 }
 
                 var scaffoldArgs = string.Join(";", toDelete.ToArray());
-                Log($"Executing Deletion for {scaffoldArgs} in {solutionDirectory}");
+                Log($"Executing Deletion for {scaffoldArgs} in {workingDirectory}");
 
                 // Run the process on a background thread
-                var logs = await Task.Run(() => ExecuteSQLDelete(scaffoldArgs, solutionDirectory));
+                var logs = await Task.Run(() => ExecuteSQLDelete(scaffoldArgs, workingDirectory));
 
                 // Return to the UI thread for logging
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -433,6 +431,28 @@ namespace Apstory.Scaffold.VisualStudio
                 isSqlDeleting = false;
                 btnSqlDelete.Enabled = !isSqlDeleting;
             }
+        }
+
+        private string FindClosestSolutionFolder(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("SQL file path cannot be null or empty.", nameof(filePath));
+
+            var directory = new DirectoryInfo(Path.GetDirectoryName(filePath));
+
+            while (directory != null)
+            {
+                var slnFiles = directory.GetFiles("*.sln");
+                if (slnFiles.Length > 0)
+                {
+                    return directory.FullName;
+                }
+
+                directory = directory.Parent;
+            }
+
+            // Fallback to the root directory if no solution folder is found
+            return GetSolutionDirectory();
         }
     }
 }
