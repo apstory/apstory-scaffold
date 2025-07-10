@@ -232,7 +232,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 return sb.ToString();
             }
             else
-                return $"Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()});";
+                return $"Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCSharpSafeKeyword()});";
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)

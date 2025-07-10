@@ -58,7 +58,10 @@ namespace Apstory.Scaffold.Domain.Util
                 "udtt_tinyints" => "List<byte>",
                 "udtt_uniqueidentifiers" => "List<Guid>",
                 "uniqueidentifier" => "Guid",
-                "geography" => "GeoLocation",
+                "geography" => "Microsoft.SqlServer.Types.SqlGeography",
+                "time" => "TimeSpan",
+                "rowversion" => "byte[]",
+                "char" => "string",
                 _ => throw new Exception($"ToCSharpTypeString lookup exception: {column.DataType}")
             };
 
@@ -84,6 +87,14 @@ namespace Apstory.Scaffold.Domain.Util
                 throw new InvalidOperationException("Schema folder not found in the provided path.");
 
             return schema;
+        }
+
+        public static string ToCSharpSafeKeyword(this string tableName)
+        {
+            if (tableName.ToCamelCase() == "event") //We cant use c# keywords like event
+                return "evt";
+
+            return tableName.ToCamelCase();
         }
     }
 }

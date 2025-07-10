@@ -24,6 +24,7 @@ namespace Apstory.Scaffold.Domain.Parser
                 var paramLine = parameters[i].Trim('\r', '\n', ' ', '@');
                 var paramRxDef = Regex.Match(paramLine, @"(\w+)\s+(\w+)\s*(\(?\w+\)?)?");
                 var lengthOrReadonly = paramRxDef.Groups[3].Value.Trim('(', ')');
+                var isNullable = paramLine.Contains('=');
 
                 string defaultValue = string.Empty;
                 if (paramRxDef.Groups[1].Value.Equals("SortDirection", StringComparison.OrdinalIgnoreCase))
@@ -34,7 +35,7 @@ namespace Apstory.Scaffold.Domain.Parser
                     ColumnName = paramRxDef.Groups[1].Value,
                     DataType = paramRxDef.Groups[2].Value,
                     DataTypeLength = lengthOrReadonly.Equals("READONLY", StringComparison.OrdinalIgnoreCase) ? string.Empty : lengthOrReadonly,
-                    IsNullable = paramLine.Replace(" ", string.Empty).EndsWith("=NULL"),
+                    IsNullable = isNullable,
                     IsReadonly = lengthOrReadonly.Equals("READONLY", StringComparison.OrdinalIgnoreCase),
                     DefaultValue = defaultValue
                 });

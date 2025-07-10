@@ -45,7 +45,17 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     results.Add(await WriteScriptToDisk(sqlTable, script));
                 }
             }
-            
+
+            if (sqlTable.FullTextIndexes.Any())
+            {
+                if (sqlTable.FullTextIndexes.Count > 1)
+                    Logger.LogWarn("Multiple Full Text Indexes detected. Only the first one will be used for search procedures.");
+
+                var fti = sqlTable.FullTextIndexes.FirstOrDefault();
+                results.Add(await WriteScriptToDisk(sqlTable, GenerateGetBySearchFreeTextProcedure(sqlTable, fti)));
+                results.Add(await WriteScriptToDisk(sqlTable, GenerateGetBySearchProcedure(sqlTable, fti)));
+            }
+
             var typesDirectory = Path.Combine(_config.Directories.DBDirectory, sqlTable.Schema, "User Defined Types");
             var udttTinyIntsPath = Path.Combine(typesDirectory, "udtt_TinyInts.sql");
             if (!File.Exists(udttTinyIntsPath))

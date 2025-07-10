@@ -1,5 +1,7 @@
 ﻿using Apstory.Scaffold.Model.Sql;
+using System.Data.Common;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Apstory.Scaffold.Domain.Scaffold
 {
@@ -30,7 +32,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var sortedColumnsNoDtNoPK = sortedColumnsNoDt.Where(s => s.ColumnName != primaryColumn.ColumnName).ToList();
 
             foreach (var column in sortedColumnsNoDt)
-                sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}{((column.IsNullable || column.ColumnName == primaryColumn.ColumnName) ? "=NULL" : "")},");
+            {
+                var match = Regex.Match(column.DefaultValue, @"DEFAULT\s*\(\(\s*(\d+)\s*\)\)");
+                if (match.Success)
+                    sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}{((column.IsNullable || column.ColumnName == primaryColumn.ColumnName) ? "=NULL" : $"={match.Groups[1].Value}")},");
+                else
+                    sb.Append($"@{column.ColumnName} {column.DataType}{(string.IsNullOrEmpty(column.DataTypeLength) ? "" : $"({column.DataTypeLength})")}{((column.IsNullable || column.ColumnName == primaryColumn.ColumnName) ? "=NULL" : "")},");   
+            }
+                
 
             sb.Append("@RetMsg NVARCHAR(MAX) OUTPUT");
             sb.AppendLine(")");
@@ -347,8 +356,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             var sortedColumns = GetSortedColumnsByNullableDefaultType(table);
             var foreignColumns = sortedColumns.Where(col => IsForeignKey(col, table)).ToList();
+            var geoOrderingColumn = sortedColumns.FirstOrDefault(s => s.DataType.Equals("geography", StringComparison.InvariantCultureIgnoreCase));
 
             sb.Append("  (");
+            if (geoOrderingColumn is not null)
+                sb.Append($"@{geoOrderingColumn.ColumnName} {geoOrderingColumn.DataType.ToUpper()}=NULL,");
+
             foreach (var column in foreignColumns)
                 sb.Append($"@{column.ColumnName} {column.DataType}=NULL,");
 
@@ -378,6 +391,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine();
 
             sb.AppendLine("    ORDER BY");
+            if (geoOrderingColumn is not null)
+                sb.AppendLine($"    CASE WHEN @{geoOrderingColumn.ColumnName} IS NOT NULL THEN GeoLocation.STDistance(@{geoOrderingColumn.ColumnName}) END ASC,");
             sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine($"    OFFSET @PageSize * (@PageNumber - 1) ROWS FETCH NEXT @PageSize ROWS ONLY),");
 
@@ -398,6 +413,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine($"    SELECT TotalRows, [{table.Schema}].[{table.TableName}].* FROM [{table.Schema}].[{table.TableName}], CTE_TotalRows");
             sb.AppendLine($"    WHERE EXISTS (SELECT 1 FROM CTE_{table.TableName} WHERE CTE_{table.TableName}.{primaryColumn.ColumnName} = [{table.Schema}].[{table.TableName}].{primaryColumn.ColumnName})");
             sb.AppendLine("    ORDER BY");
+            if (geoOrderingColumn is not null)
+                sb.AppendLine($"    CASE WHEN @{geoOrderingColumn.ColumnName} IS NOT NULL THEN GeoLocation.STDistance(@{geoOrderingColumn.ColumnName}) END ASC,");
             sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine("    OPTION (RECOMPILE);");
             sb.AppendLine("  END");
@@ -416,6 +433,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine(" AND IsActive = @IsActive");
 
             sb.AppendLine("    ORDER BY");
+            if (geoOrderingColumn is not null)
+                sb.AppendLine($"    CASE WHEN @{geoOrderingColumn.ColumnName} IS NOT NULL THEN GeoLocation.STDistance(@{geoOrderingColumn.ColumnName}) END ASC,");
             sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine($"    OFFSET @PageSize * (@PageNumber - 1) ROWS FETCH NEXT @PageSize ROWS ONLY),");
 
@@ -436,6 +455,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine($"    SELECT TotalRows, [{table.Schema}].[{table.TableName}].* FROM [{table.Schema}].[{table.TableName}], CTE_TotalRows");
             sb.AppendLine($"    WHERE EXISTS (SELECT 1 FROM CTE_{table.TableName} WHERE CTE_{table.TableName}.{primaryColumn.ColumnName} = [{table.Schema}].[{table.TableName}].{primaryColumn.ColumnName})");
             sb.AppendLine("    ORDER BY");
+            if (geoOrderingColumn is not null)
+                sb.AppendLine($"    CASE WHEN @{geoOrderingColumn.ColumnName} IS NOT NULL THEN GeoLocation.STDistance(@{geoOrderingColumn.ColumnName}) END ASC,");
             sb.AppendLine("    CASE WHEN @SortDirection = 'ASC' THEN CreateDT END ASC, CASE WHEN @SortDirection = 'DESC' THEN CreateDT END DESC");
             sb.AppendLine("    OPTION (RECOMPILE);");
             sb.AppendLine("  END");
@@ -595,6 +616,89 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sb.ToString();
         }
 
+
+        public string GenerateGetBySearchProcedure(SqlTable table, SqlFullTextIndex fullTextIndex)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetBySearch] ******/");
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine("-- Description    : Select By Search " + table.TableName);
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine();
+
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBySearch]");
+            sb.AppendLine($"  (@SearchCriteria nvarchar(255), @IsActive bit=NULL)");
+
+            sb.AppendLine("AS");
+            sb.AppendLine("BEGIN");
+            sb.AppendLine("  SET NOCOUNT ON;");
+            sb.AppendLine("  SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;");
+            sb.AppendLine();
+            sb.AppendLine("  IF (@SearchCriteria <> '' OR @SearchCriteria IS NOT NULL)");
+            sb.AppendLine("  BEGIN");
+            sb.AppendLine("    SET @SearchCriteria = '\"' + @SearchCriteria + '*\"'");
+            sb.AppendLine("  END");
+            sb.AppendLine("  ELSE");
+            sb.AppendLine("  BEGIN");
+            sb.AppendLine("    SET @SearchCriteria = '\"\"'");
+            sb.AppendLine("  END");
+            sb.AppendLine();
+            sb.AppendLine($"  SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE IsActive = @IsActive");
+            sb.Append($"  AND (");
+
+            foreach (var col in fullTextIndex.Columns)
+                sb.Append($"(CONTAINS({col},@SearchCriteria)) OR ");
+
+            sb.Length -= 4;
+            sb.AppendLine($")");
+            sb.AppendLine("END");
+
+            return sb.ToString();
+        }
+
+        public string GenerateGetBySearchFreeTextProcedure(SqlTable table, SqlFullTextIndex fullTextIndex)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"/****** Object:  StoredProcedure [{table.Schema}].[zgen_{table.TableName}_GetBySearchFreeText] ******/");
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine("-- Description    : Select By SearchFreeText " + table.TableName);
+            sb.AppendLine("-- ===================================================================");
+            sb.AppendLine();
+
+            sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBySearchFreeText]");
+            sb.AppendLine($"  (@SearchCriteria nvarchar(255), @IsActive bit=NULL)");
+
+            sb.AppendLine("AS");
+            sb.AppendLine("BEGIN");
+            sb.AppendLine("  SET NOCOUNT ON;");
+            sb.AppendLine("  SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;");
+            sb.AppendLine();
+            sb.AppendLine("  IF (@SearchCriteria <> '' OR @SearchCriteria IS NOT NULL)");
+            sb.AppendLine("  BEGIN");
+            sb.AppendLine("    SET @SearchCriteria = '\"' + @SearchCriteria + '*\"'");
+            sb.AppendLine("  END");
+            sb.AppendLine("  ELSE");
+            sb.AppendLine("  BEGIN");
+            sb.AppendLine("    SET @SearchCriteria = '\"\"'");
+            sb.AppendLine("  END");
+            sb.AppendLine();
+            sb.AppendLine($"  SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE IsActive = @IsActive");
+            sb.Append($"  AND (");
+
+            foreach (var col in fullTextIndex.Columns)
+                sb.Append($"(FREETEXT({col},@SearchCriteria)) OR ");
+
+            sb.Length -= 4;
+            sb.AppendLine($")");
+
+            sb.AppendLine("END");
+
+            return sb.ToString();
+        }
+
+        #region Private Methods
         private bool IsForeignKey(SqlColumn column, SqlTable table)
         {
             // Check if the column is part of a foreign key constraint (you'll need to adjust this based on how foreign keys are represented in your data)
@@ -605,7 +709,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             // Identify the primary key column
             var primaryKeyColumn = table.Constraints.FirstOrDefault(c => c.ConstraintType == Model.Enum.ConstraintType.PrimaryKey)?.Column;
-            if (primaryKeyColumn == null)
+            if (primaryKeyColumn == null || primaryKeyColumn == string.Empty)
                 throw new InvalidOperationException("No primary key column found for table " + table.TableName);
 
             // Get primary key column details
@@ -643,5 +747,6 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                 .ThenBy(s => columnIndexes[s.ColumnName])
                                 .ToList();
         }
+        #endregion
     }
 }

@@ -82,6 +82,8 @@ namespace Apstory.Scaffold.App.Worker
 
                     foreach (var tablePath in allTablePaths)
                     {
+                        if(tablePath.ToLower().Contains("dbup") || tablePath.ToLower().Contains("schemaversions"))
+                            continue;
                         await RegenerateTable(tablePath);
                         await RegenerateTableStoredProcedures(tablePath);
                     }

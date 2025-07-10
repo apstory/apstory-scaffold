@@ -281,9 +281,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
             else
             {
-                sb.AppendLine($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()})");
+                sb.AppendLine($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCSharpSafeKeyword()})");
                 sb.AppendLine("{");
-                sb.AppendLine($"    return await _repo.{methodName}({sqlStoredProcedure.TableName.ToCamelCase()});");
+                sb.AppendLine($"    return await _repo.{methodName}({sqlStoredProcedure.TableName.ToCSharpSafeKeyword()});");
                 sb.AppendLine("}");
             }
 
