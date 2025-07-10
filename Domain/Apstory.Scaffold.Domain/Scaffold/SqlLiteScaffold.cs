@@ -18,7 +18,6 @@ namespace Apstory.Scaffold.Domain.Scaffold
             StringBuilder stringBuilder = new StringBuilder();
             GenerateHeader(stringBuilder, tsModel);
 
-            GenerateSqliteCreate(stringBuilder, tsModel);
             GenerateSqliteAddReplace(stringBuilder, tsModel);
             GenerateSqliteGetById(stringBuilder, tsModel);
             GenerateSqliteGetAll(stringBuilder, tsModel);

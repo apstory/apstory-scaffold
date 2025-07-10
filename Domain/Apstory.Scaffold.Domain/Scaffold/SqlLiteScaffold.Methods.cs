@@ -8,6 +8,10 @@ namespace Apstory.Scaffold.Domain.Scaffold
     {
         private void GenerateHeader(StringBuilder sb, TSModel tsModel)
         {
+            StringBuilder sbParams = new StringBuilder();
+            foreach (var parm in tsModel.Properties)
+                sbParams.Append($"{(sbParams.Length > 0 ? ", " : "")}{parm.PropertyName.ToCamelCase()} {GetSqliteType(parm.PropertyType)}{(IsPrimaryKey(tsModel, parm) ? " PRIMARY KEY" : "")}");
+
             sb.AppendLine("import { Injectable } from '@angular/core';");
             sb.AppendLine("import { SQLiteService } from '../../storage/sqlite.service';");
             sb.AppendLine("import { BaseDalService } from './base-dal.service';");
@@ -17,42 +21,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine();
             sb.AppendLine("@Injectable()");
             sb.AppendLine($"export class {tsModel.TSModelName}DalService extends BaseDalService<{tsModel.TSModelName}> {{");
-            sb.AppendLine($"  private TABLE_NAME = '{tsModel.TSModelName}';");
+            sb.AppendLine($" public static CreateStatement: string = 'CREATE TABLE IF NOT EXISTS {tsModel.TSModelName}({sbParams.ToString()})';");
             sb.AppendLine();
             sb.AppendLine("  constructor(sqliteService: SQLiteService, logger: LoggerService) { ");
             sb.AppendLine("    super(sqliteService, logger);");
             sb.AppendLine("  }");
 
         }
-
-        private void GenerateSqliteCreate(StringBuilder sb, TSModel tsModel)
-        {
-            try
-            {
-
-                sb.AppendLine($"  private async create{tsModel.TSModelName}() {{");
-                sb.AppendLine($"    try {{");
-
-                StringBuilder sbParams = new StringBuilder();
-                foreach (var parm in tsModel.Properties)
-                    sbParams.Append($"{(sbParams.Length > 0 ? ", " : "")}{parm.PropertyName.ToCamelCase()} {GetSqliteType(parm.PropertyType)}{(IsPrimaryKey(tsModel, parm) ? " PRIMARY KEY" : "")}");
-
-                sb.AppendLine($"      await this.OpenDB();");
-                sb.AppendLine($"      await this.db.run('CREATE TABLE IF NOT EXISTS {tsModel.TSModelName}({sbParams.ToString()})');");
-                sb.AppendLine($"    }} catch (error) {{");
-                sb.AppendLine($"      await this.handleError(error);");
-                sb.AppendLine($"      return undefined;");
-                sb.AppendLine($"    }}");
-                sb.AppendLine($"  }}");
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write(ex.Message);
-                Console.ForegroundColor = ConsoleColor.White;
-            }
-        }
-
+        
         private void GenerateSqliteAddReplace(StringBuilder sb, TSModel tsModel)
         {
             try
@@ -194,11 +170,16 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 Console.WriteLine($"Process sqlite count for table {tsModel.TSModelName}");
                 sb.AppendLine();
-                sb.AppendLine($"  public override async Count(isSynced: boolean): Promise<number | undefined> {{");
+                sb.AppendLine($"  public override async Count(isSynced?: boolean): Promise<number | undefined> {{");
                 sb.AppendLine($"    try {{");
                 sb.AppendLine($"      await this.OpenDB();");
-                sb.AppendLine($"      let result = await this.db.query('SELECT COUNT(*) as totalRows FROM {tsModel.TSModelName} WHERE IsActive = 1 and IsSynced = ?', [Number(isSynced)]);");
-                sb.AppendLine($"      return (result.values as Array<{tsModel.TSModelName}>)[0].totalRows;");
+                sb.AppendLine($"      if (isSynced !== undefined) {{");
+                sb.AppendLine($"        let result = await this.db.query('SELECT COUNT(*) as totalRows FROM {tsModel.TSModelName} WHERE IsSynced = ?', [Number(isSynced)]);");
+                sb.AppendLine($"        return (result.values as Array<{tsModel.TSModelName}>)[0].totalRows;");
+                sb.AppendLine($"      }} else {{");
+                sb.AppendLine($"        let result = await this.db.query('SELECT COUNT(*) as totalRows FROM {tsModel.TSModelName}');");
+                sb.AppendLine($"        return (result.values as Array<{tsModel.TSModelName}>)[0].totalRows;");
+                sb.AppendLine($"      }}");
                 sb.AppendLine($"    }} catch (error) {{");
                 sb.AppendLine($"      await this.handleError(error);");
                 sb.AppendLine($"      return undefined;");
@@ -293,11 +274,16 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
                     Console.WriteLine("Process sqlite getCountByIds for table " + tsModel.TSModelName);
                     sb.AppendLine();
-                    sb.AppendLine($"  public async CountBy{propertyName.ToPascalCase()}({propertyName.ToCamelCase()}: {property.PropertyType}, isSynced: boolean) {{");
+                    sb.AppendLine($"  public async CountBy{propertyName.ToPascalCase()}({propertyName.ToCamelCase()}: {property.PropertyType}, isSynced?: boolean) {{");
                     sb.AppendLine($"    try {{");
                     sb.AppendLine($"      await this.OpenDB();");
-                    sb.AppendLine($"      let result = await this.db.query('SELECT COUNT(*) as totalRows FROM {tsModel.TSModelName} WHERE {propertyName} = ? AND isSynced = ?', [{propertyName.ToCamelCase()}, Number(isSynced)]);");
-                    sb.AppendLine($"      return (result.values as Array<{tsModel.TSModelName}>)[0].totalRows;");
+                    sb.AppendLine($"      if (isSynced !== undefined) {{");
+                    sb.AppendLine($"        let result = await this.db.query('SELECT COUNT(*) as totalRows FROM {tsModel.TSModelName} WHERE {propertyName} = ? AND isSynced = ?', [{propertyName.ToCamelCase()}, Number(isSynced)]);");
+                    sb.AppendLine($"        return (result.values as Array<{tsModel.TSModelName}>)[0].totalRows;");
+                    sb.AppendLine($"      }} else {{");
+                    sb.AppendLine($"        let result = await this.db.query('SELECT COUNT(*) as totalRows FROM {tsModel.TSModelName} WHERE {propertyName} = ?', [{propertyName.ToCamelCase()}]);");
+                    sb.AppendLine($"        return (result.values as Array<{tsModel.TSModelName}>)[0].totalRows;");
+                    sb.AppendLine($"      }}");
                     sb.AppendLine($"    }} catch (error) {{");
                     sb.AppendLine($"      await this.handleError(error);");
                     sb.AppendLine($"      return undefined;");
