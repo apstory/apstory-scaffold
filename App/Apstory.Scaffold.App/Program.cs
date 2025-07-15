@@ -75,12 +75,17 @@ class Program
             Console.WriteLine($"Override Sql Project Path: {overrideSqlProjectPath}");
             Console.WriteLine($"Override Namespace: {overrideNamespace}");
 
-            string basePath = Environment.CurrentDirectory;
-            if (overrideSqlProjectPath is null)
-                overrideSqlProjectPath = SearchForSqlProjectFile(basePath);
+            CSharpConfig csharpConfig = new CSharpConfig();
+            if (!tsDalFolder)
+            {
 
-            Logger.LogDebug($"Using SQL Project: {overrideSqlProjectPath}");
-            var csharpConfig = SetupProjectConfiguration(basePath, overrideSqlProjectPath, overrideNamespace);
+                string basePath = Environment.CurrentDirectory;
+                if (overrideSqlProjectPath is null)
+                    overrideSqlProjectPath = SearchForSqlProjectFile(basePath);
+
+                Logger.LogDebug($"Using SQL Project: {overrideSqlProjectPath}");
+                csharpConfig = SetupProjectConfiguration(basePath, overrideSqlProjectPath, overrideNamespace);
+            }
 
             var host = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((context, config) =>

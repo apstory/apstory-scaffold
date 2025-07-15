@@ -41,6 +41,11 @@
         "category": "Scaffold"
       },
       {
+        "command": "apstoryScaffold.configureHelp",
+        "title": "Configuration Help",
+        "category": "Scaffold"
+      },
+      {
         "command": "apstoryScaffold.showCommands",
         "title": "Show Apstory Scaffold Commands",
         "category": "Scaffold"

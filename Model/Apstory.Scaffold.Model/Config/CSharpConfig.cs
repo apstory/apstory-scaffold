@@ -6,6 +6,9 @@
         public CSharpNamespaces Namespaces { get; set; }
         public CSharpDirectories Directories { get; set; }
 
+        public CSharpConfig()
+        { }
+
         public CSharpConfig(string solutionDirectory, string rootNamespace, string sqlProjectFile)
         {
             SqlProjectFile = sqlProjectFile;

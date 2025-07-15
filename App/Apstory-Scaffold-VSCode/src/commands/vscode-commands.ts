@@ -1,13 +1,19 @@
 // Import necessary modules
 import * as vscode from 'vscode';
+import { ConfigUtil } from '../utils/config-util';
 
 /**
  * Handles general VS Code related commands
  */
 export function registerVSCodeCommands(context: vscode.ExtensionContext): void {
     // Register Configure command
-    const configure = vscode.commands.registerCommand('apstoryScaffold.configure', (uri) => {
-        vscode.window.showInformationMessage('Configure command executed.');
+    const configure = vscode.commands.registerCommand('apstoryScaffold.configure', async () => {
+        await ConfigUtil.openConfigFile();
+    });
+
+    // Register Configure Help command
+    const configureHelp = vscode.commands.registerCommand('apstoryScaffold.configureHelp', async () => {
+        await ConfigUtil.openConfigReadme();
     });
 
     // Create a status bar item
@@ -22,7 +28,7 @@ export function registerVSCodeCommands(context: vscode.ExtensionContext): void {
         showCommandsMenu();
     });
 
-    context.subscriptions.push(configure, statusBarItem, showCommands);
+    context.subscriptions.push(configure, configureHelp, statusBarItem, showCommands);
 }
 
 /**
@@ -36,6 +42,7 @@ export function showCommandsMenu(): void {
     
     // Always show Configure command
     commands.push({ label: "Configure", command: "apstoryScaffold.configure" });
+    commands.push({ label: "Configuration Help", command: "apstoryScaffold.configureHelp" });
     
     // TypeScript file commands
     if (fileExtension === 'ts' || fileExtension === 'tsx') {
