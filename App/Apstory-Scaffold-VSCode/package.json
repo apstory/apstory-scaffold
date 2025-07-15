@@ -9,25 +9,83 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "extension.generateSQLiteRepo",
         "title": "Generate SQLite Repository",
-        "category": "SQLite"
+        "category": "Scaffold"
+      },
+      {
+        "command": "apstoryScaffold.runCodeScaffold",
+        "title": "Run Code Scaffold",
+        "category": "Scaffold"
+      },
+      {
+        "command": "apstoryScaffold.pushSqlChanges",
+        "title": "Push SQL Changes",
+        "category": "Scaffold"
+      },
+      {
+        "command": "apstoryScaffold.configure",
+        "title": "Configure",
+        "category": "Scaffold"
+      },
+      {
+        "command": "apstoryScaffold.delete",
+        "title": "Delete",
+        "category": "Scaffold"
+      },
+      {
+        "command": "apstoryScaffold.showCommands",
+        "title": "Show Apstory Scaffold Commands",
+        "category": "Scaffold"
       }
     ],
     "menus": {
       "explorer/context": [
         {
-          "command": "extension.generateSQLiteRepo",
-          "when": "resourceLangId == typescript",
+          "submenu": "scaffold.menu",
           "group": "navigation"
         }
+      ],
+      "scaffold.menu": [
+        {
+          "command": "extension.generateSQLiteRepo",
+          "when": "resourceLangId == typescript",
+          "group": "scaffold@1"
+        },
+        {
+          "command": "apstoryScaffold.runCodeScaffold",
+          "when": "resourceLangId == sql",
+          "group": "scaffold@2"
+        },
+        {
+          "command": "apstoryScaffold.pushSqlChanges",
+          "when": "resourceLangId == sql",
+          "group": "scaffold@3"
+        },
+        {
+          "command": "apstoryScaffold.configure",
+          "group": "scaffold@4"
+        },
+        {
+          "command": "apstoryScaffold.delete",
+          "when": "resourceLangId == sql",
+          "group": "scaffold@5"
+        }
       ]
-    }
+    },
+    "submenus": [
+      {
+        "id": "scaffold.menu",
+        "label": "Scaffold"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
