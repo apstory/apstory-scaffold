@@ -11,12 +11,15 @@
         public string DomainInterfaceDirectory { get; set; }
         public string DalInterfaceDirectory { get; set; }
         public string DBDirectory { get; set; }
+        public string DbupDirectory { get; set; }
         public string ServiceCollectionExtensionDalDirectory { get; set; }
         public string ServiceCollectionExtensionDomainDirectory { get; set; }
 
         public CSharpDirectories(string solutionDirectory, string rootNamespace, string sqlProjectFile)
         {
             DBDirectory = Path.GetDirectoryName(sqlProjectFile);
+            DbupDirectory = Path.Combine(Path.GetDirectoryName(DBDirectory), $"{Path.GetFileName(DBDirectory)}.Dbup");
+
             SolutionDirectory = solutionDirectory;
             CommonDirectory = Path.Combine(solutionDirectory, "Common", $"{rootNamespace}.Common");
             ModelDirectory = Path.Combine(solutionDirectory, "Model", $"{rootNamespace}.Model", "#SCHEMA#");

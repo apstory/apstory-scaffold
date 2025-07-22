@@ -107,7 +107,24 @@ namespace Apstory.Scaffold.App.Worker
                             await PushUserDefinedType(connectionString, userDefinedTypePath, schema, entityName);
                         }
                         else
-                            Logger.LogError($"Could not find a table, stored procedure or type {schema}.{entityName}");
+                        {
+                            string[] files = Directory.GetFiles(_csharpConfig.Directories.DbupDirectory, $"{entityName}.sql", SearchOption.AllDirectories);
+                            if (files.Length > 1)
+                            {
+                                Logger.LogInfo($"Multiple DBUP Scripts found, aborting [{entityName}.sql]");
+                                continue;
+                            }
+
+                            if (files.Length == 0)
+                            {
+                                Logger.LogInfo($"No DBUP Scripts found, aborting [{entityName}.sql]");
+                                continue;
+                            }
+
+                            Logger.LogInfo($"Push DBUP Script: {entityName}.sql");
+                            var dbupScript = FileUtils.SafeReadAllText(files[0]);
+                            await ExecuteSql(connectionString, dbupScript);
+                        }
                     }
                 }
             }
