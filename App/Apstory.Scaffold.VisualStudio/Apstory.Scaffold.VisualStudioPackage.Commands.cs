@@ -445,7 +445,9 @@ namespace Apstory.Scaffold.VisualStudio
                 var slnFiles = directory.GetFiles("*.sln");
                 if (slnFiles.Length > 0)
                 {
-                    return directory.FullName;
+                    var areAllDatabaseSolutionProjects = slnFiles.All(s => Path.GetFileName(s.FullName).Contains(".DB."));
+                    if (!areAllDatabaseSolutionProjects)
+                        return directory.FullName;
                 }
 
                 directory = directory.Parent;
