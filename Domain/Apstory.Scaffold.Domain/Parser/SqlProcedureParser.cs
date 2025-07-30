@@ -10,6 +10,7 @@ namespace Apstory.Scaffold.Domain.Parser
         {
             SqlStoredProcedure sqlStoredProcedure = new SqlStoredProcedure();
 
+            sqlProcScript = sqlProcScript.Trim();
             var paramsPart = sqlProcScript.Substring(0, sqlProcScript.ToUpper().IndexOf("BEGIN") + 5);
 
             var fileNameRx = Regex.Match(paramsPart, @"CREATE\s+PROCEDURE\s+\[?(\w+)\]?\.?\[?(\w+)\]?.*?\(?(.*)\)?.*?AS.*?BEGIN", RegexOptions.Singleline);
