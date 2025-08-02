@@ -44,7 +44,7 @@ export function registerTypescriptCommands(context: vscode.ExtensionContext): vo
         
         const selectedModelPath = uri.fsPath;
         const fileName = path.basename(selectedModelPath, path.extname(selectedModelPath)) + '.Repository.cs';
-        const repositoryPath = path.join(outputFolder, fileName);
+        const repositoryPath = outputFolder;
         
         // Ensure the output directory exists
         const fs = require('fs');

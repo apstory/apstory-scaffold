@@ -1,8 +1,17 @@
 {
   "name": "apstory-scaffold-vscode",
-  "displayName": "apstory-scaffold-vscode",
+  "displayName": "Apstory Scaffold",
   "description": "Quick and easy Typescript code scaffolding",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "publisher": "apstory",
+  "author": "Apstory",
+  "license": "MIT",
+  "icon": "images/logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Apstory/Apstory.Scaffold.git",
+    "directory": "App/Apstory-Scaffold-VSCode"
+  },
   "engines": {
     "vscode": "^1.97.0"
   },
