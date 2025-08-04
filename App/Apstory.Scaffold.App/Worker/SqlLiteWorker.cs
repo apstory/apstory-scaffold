@@ -28,6 +28,8 @@ namespace Apstory.Scaffold.App.Worker
 
             var tsModel = TypeScriptModelParser.ParseModelFile(tsModelPath);
 
+            tsModel.Properties = tsModel.Properties.Where(p => !p.PropertyType.Equals("SqlGeography", StringComparison.OrdinalIgnoreCase))
+                                                   .ToList();
             var results = await _sqlLiteScaffold.GenerateCode(tsModel, dalFolder);
             
             _lifetime.StopApplication();
