@@ -84,6 +84,7 @@ namespace Apstory.Scaffold.App.Worker
                     {
                         if(tablePath.ToLower().Contains("dbup") || tablePath.ToLower().Contains("schemaversions"))
                             continue;
+
                         await RegenerateTable(tablePath);
                         await RegenerateTableStoredProcedures(tablePath);
                     }
@@ -112,6 +113,9 @@ namespace Apstory.Scaffold.App.Worker
                         var allTablePaths = Directory.EnumerateFiles(schemaTablesPath, "*.sql", SearchOption.TopDirectoryOnly);
                         foreach (var tablePath in allTablePaths)
                         {
+                            if (tablePath.ToLower().Contains("dbup") || tablePath.ToLower().Contains("schemaversions"))
+                                continue;
+
                             await RegenerateTable(tablePath);
                             await RegenerateTableStoredProcedures(tablePath);
                         }
