@@ -55,7 +55,7 @@ namespace Apstory.Scaffold.Domain.Parser
                                        .Where(s => !string.IsNullOrWhiteSpace(s));
 
                 // Define regex to extract column details
-                var columnRegex = new Regex(@"\[(\w+)\]\s*(\w+)\s*(\(\w+\))?\s?.*?(DEFAULT\s*\(.*\))?\s*(NOT\s+NULL|NULL)", RegexOptions.IgnoreCase);
+                var columnRegex = new Regex(@"\[(\w+)\]\s*(\w+)\s*(\([\d,\s]+\))?\s?.*?(DEFAULT\s*\(.*\))?\s*(NOT\s+NULL|NULL)", RegexOptions.IgnoreCase);
 
                 // Parse columns
                 foreach (var line in columnLines)
