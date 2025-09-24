@@ -57,6 +57,7 @@ namespace Apstory.Scaffold.VisualStudio
         private const int ToolbarApstorySqlUpdateCommandId = 0x1055;   
         private const int ToolbarApstoryConfigCommandId = 0x1053;   
         private const int ToolbarApstoryDeleteCommandId = 0x1056;   
+        private const int ToolbarApstoryTypeScriptScaffoldCommandId = 0x1058;   //Toolbar TypeScript Scaffold
 
         private const int ContextMenuScaffoldCommandId = 0x1052;    
         private const int ContextMenuSqlUpdateCommandId = 0x1054;
@@ -67,6 +68,7 @@ namespace Apstory.Scaffold.VisualStudio
         private MenuCommand btnOpenConfig;
         private MenuCommand btnSqlUpdate;
         private MenuCommand btnSqlDelete;
+        private MenuCommand btnRunTypeScriptScaffold;
 
         private ScaffoldConfig config;
 
@@ -98,6 +100,10 @@ namespace Apstory.Scaffold.VisualStudio
             if (commandService != null)
             {
                 //Toolbar Buttons
+                var cmdToolbarTypeScriptScaffoldId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryTypeScriptScaffoldCommandId);
+                btnRunTypeScriptScaffold = new MenuCommand(ExecuteToolbarTypeScriptScaffoldAsync, cmdToolbarTypeScriptScaffoldId);
+                commandService.AddCommand(btnRunTypeScriptScaffold);
+
                 var cmdToolbarRunScaffoldId = new CommandID(new Guid(guidApstoryScaffoldVisualStudioPackageCmdSet), ToolbarApstoryScaffoldCommandId);
                 btnRunCodeScaffold = new MenuCommand(ExecuteToolbarCodeScaffoldAsync, cmdToolbarRunScaffoldId);
                 commandService.AddCommand(btnRunCodeScaffold);

@@ -15,6 +15,7 @@ namespace Apstory.Scaffold.VisualStudio
         private bool isScaffolding = false;
         private bool isSqlPushing = false;
         private bool isSqlDeleting = false;
+        private bool isTypeScriptScaffolding = false;
 
         private async void ExecuteToolbarOpenConfigAsync(object sender, EventArgs e)
         {
@@ -214,6 +215,110 @@ namespace Apstory.Scaffold.VisualStudio
             {
                 isSqlDeleting = false;
                 btnSqlDelete.Enabled = !isSqlDeleting;
+            }
+        }
+
+        private async void ExecuteToolbarTypeScriptScaffoldAsync(object sender, EventArgs e)
+        {
+            await this.LoadConfigAsync();
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            if (isTypeScriptScaffolding)
+            {
+                Log("TypeScript Scaffolding is already running. Please wait.");
+                return;
+            }
+
+            isTypeScriptScaffolding = true;
+            btnRunTypeScriptScaffold.Enabled = !isTypeScriptScaffolding;
+
+            try
+            {
+                var solutionDirectory = GetSolutionDirectory();
+                if (string.IsNullOrEmpty(solutionDirectory))
+                {
+                    Log("Could not find solution directory");
+                    return;
+                }
+
+                string scriptToExecute = null;
+
+                // First, check if PowershellScript is configured and exists
+                if (!string.IsNullOrWhiteSpace(this.config.PowershellScript))
+                {
+                    var configuredScriptPath = Path.IsPathRooted(this.config.PowershellScript) 
+                        ? this.config.PowershellScript 
+                        : Path.Combine(solutionDirectory, this.config.PowershellScript);
+                    
+                    if (File.Exists(configuredScriptPath))
+                    {
+                        scriptToExecute = configuredScriptPath;
+                        Log($"Using configured PowerShell script: {configuredScriptPath}");
+                    }
+                    else
+                    {
+                        Log($"Configured PowerShell script not found: {configuredScriptPath}");
+                    }
+                }
+                else
+                {
+                    // Fallback to default gen-typescript.ps1 in solution root if no script is configured
+                    var defaultScriptPath = Path.Combine(solutionDirectory, "gen-typescript.ps1");
+                    if (File.Exists(defaultScriptPath))
+                    {
+                        scriptToExecute = defaultScriptPath;
+                        Log($"Using default TypeScript generation script: {defaultScriptPath}");
+                    }
+                    else
+                    {
+                        Log($"Default script not found: {defaultScriptPath}");
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(scriptToExecute))
+                {
+                    Log($"Executing PowerShell script: {scriptToExecute}");
+
+                    // Run the PowerShell script on a background thread
+                    var logs = await Task.Run(() => ExecutePowerShellScript(scriptToExecute, solutionDirectory));
+
+                    // Return to the UI thread for logging
+                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    foreach (var log in logs)
+                        Log(log);
+
+                    List<string> errorsToLog = logs.Where(s => s.StartsWith("Error:")).ToList();
+                    if (errorsToLog.Any())
+                    {
+                        ErrorListProvider.Tasks.Clear();
+
+                        foreach (var errorMessage in errorsToLog)
+                            LogError(errorMessage, Hardcoded.ErrorLogScaffold);
+
+                        ErrorListProvider.Show(); // This ensures the Error List pops up
+                    }
+
+                    Log($"TypeScript PowerShell script execution completed");
+                }
+                else
+                {
+                    // No script found, open config file for user to configure
+                    Log("No TypeScript generation script found. Opening configuration file...");
+                    Log("Please check the 'PowershellScript' property and ensure the specified script exists.");
+                    Log("Default value is 'gen-typescript.ps1'. You can use a relative path or an absolute path.");
+                    
+                    ExecuteToolbarOpenConfigAsync(sender, e);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                LogError($"Exception in ExecuteToolbarTypeScriptScaffoldAsync: {ex.Message}");
+                ErrorListProvider.Show();
+            }
+            finally
+            {
+                isTypeScriptScaffolding = false;
+                btnRunTypeScriptScaffold.Enabled = !isTypeScriptScaffolding;
             }
         }
 

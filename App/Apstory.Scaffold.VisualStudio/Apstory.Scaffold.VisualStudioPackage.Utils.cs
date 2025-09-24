@@ -198,6 +198,48 @@ namespace Apstory.Scaffold.VisualStudio
             return logs;
         }
 
+        /// <summary>
+        /// Execute PowerShell Script
+        /// </summary>
+        /// <param name="scriptPath">Full path to the PowerShell script</param>
+        /// <param name="workingDirectory">Directory to execute the script in</param>
+        private async Task<List<string>> ExecutePowerShellScript(string scriptPath, string workingDirectory)
+        {
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-ExecutionPolicy Bypass -File \"{scriptPath}\"",
+                WorkingDirectory = workingDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            List<string> logs = new List<string>();
+            using (Process process = new Process { StartInfo = psi })
+            {
+                process.OutputDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        logs.Add(e.Data);
+                };
+
+                process.ErrorDataReceived += (sender, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        logs.Add($"Error: {e.Data}");
+                };
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+                await process.WaitForExitAsync();
+            }
+
+            return logs;
+        }
+
         private async void Log(string message)
         {
             // Get the Output window service

@@ -54,7 +54,15 @@
 
     <Buttons>
       <!-- Toolbar Buttons -->
-      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryScaffoldCommandId" priority="0x0100" type="Button">
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryTypeScriptScaffoldCommandId" priority="0x0100" type="Button">
+        <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
+        <Icon guid="guidImgTypeScript" id="bmpTypeScript" />
+        <Strings>
+          <ButtonText>Run TypeScript Generation</ButtonText>
+        </Strings>
+      </Button>
+      
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryScaffoldCommandId" priority="0x0101" type="Button">
         <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
         <Icon guid="guidImgRunStrip" id="bmpRun" />
         <Strings>
@@ -62,7 +70,7 @@
         </Strings>
       </Button>
 
-      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstorySqlUpdateCommandId" priority="0x0101" type="Button">
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstorySqlUpdateCommandId" priority="0x0102" type="Button">
         <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
         <Icon guid="guidImgSqlStrip" id="bmpSql" />
         <Strings>
@@ -70,7 +78,7 @@
         </Strings>
       </Button>
       
-      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryConfigCommandId" priority="0x0102" type="Button">
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryConfigCommandId" priority="0x0103" type="Button">
         <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
         <Icon guid="guidImgConfig" id="bmpConfig" />
         <Strings>
@@ -78,7 +86,7 @@
         </Strings>
       </Button>
 
-      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryDeleteCommandId" priority="0x0103" type="Button">
+      <Button guid="guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarApstoryDeleteCommandId" priority="0x0104" type="Button">
         <Parent guid= "guidToolbarApstoryScaffoldCommandPackageCmdSet" id="ToolbarGroup" />
         <Icon guid="guidImgDelete" id="bmpDelete" />
         <Strings>
@@ -126,6 +134,7 @@
       <Bitmap guid="guidImgConfig" href="Resources\scaffold_config.png" usedList="bmpConfig"/>
       <Bitmap guid="guidImgDelete" href="Resources\scaffold_delete.png" usedList="bmpDelete"/>
       <Bitmap guid="guidImgSqlStrip" href="Resources\scaffold_sql_strip.png" usedList="bmpSql,bmpSqlFail,bmpSqlSkipped,bmpSqlSuccess"/>
+      <Bitmap guid="guidImgTypeScript" href="Resources\scaffold_typescript.png" usedList="bmpTypeScript"/>
     </Bitmaps>
   </Commands>
 
@@ -144,6 +153,7 @@
       <IDSymbol name="ToolbarApstoryConfigCommandId" value="0x1053" />
       <IDSymbol name="ToolbarApstorySqlUpdateCommandId" value="0x1055" />
       <IDSymbol name="ToolbarApstoryDeleteCommandId" value="0x1056" />
+      <IDSymbol name="ToolbarApstoryTypeScriptScaffoldCommandId" value="0x1058" />
 
       <IDSymbol name="ContextMenuScaffoldCommandId" value="0x1052" />
       <IDSymbol name="ContextMenuSqlUpdateCommandId" value="0x1054" />
@@ -173,6 +183,10 @@
       <IDSymbol name="bmpSqlFail" value="2" />
       <IDSymbol name="bmpSqlSkipped" value="3" />
       <IDSymbol name="bmpSqlSuccess" value="4" />
+    </GuidSymbol>
+
+    <GuidSymbol name="guidImgTypeScript" value="{208b5164-e89b-4490-aff5-7f1fd4b28fda}" >
+      <IDSymbol name="bmpTypeScript" value="1" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>
