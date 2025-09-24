@@ -23,7 +23,7 @@ namespace Apstory.Scaffold.Domain.Parser
             for (var i = 0; i < parameters.Length; i++)
             {
                 var paramLine = parameters[i].Trim('\r', '\n', ' ', '@');
-                var paramRxDef = Regex.Match(paramLine, @"(\w+)\s+(\w+)\s*(\(?\w+\)?)?");
+                var paramRxDef = Regex.Match(paramLine, @"(\w+)\s+(\w+)\s*(\([^)]*\)|READONLY)?");
                 var lengthOrReadonly = paramRxDef.Groups[3].Value.Trim('(', ')');
                 var isNullable = paramLine.Contains('=');
 
