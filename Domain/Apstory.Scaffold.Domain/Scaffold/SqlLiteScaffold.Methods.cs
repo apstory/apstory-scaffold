@@ -28,7 +28,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("  }");
 
         }
-        
+
         private void GenerateSqliteAddReplace(StringBuilder sb, TSModel tsModel)
         {
             try
@@ -61,11 +61,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
                 sb.AppendLine($"      await this.OpenDB();");
                 sb.AppendLine($"      await this.db.run('REPLACE INTO {tsModel.TSModelName} VALUES ({qMarks})', [{sbParams}]);");
-                sb.AppendLine($"      await this.db.close();");
                 sb.AppendLine($"      return true;");
                 sb.AppendLine($"    }} catch (error) {{");
                 sb.AppendLine($"      await this.handleError(error);");
                 sb.AppendLine($"      return false;");
+                sb.AppendLine($"    }} finally {{");
+                sb.AppendLine($"      await this.CloseDB();");
                 sb.AppendLine($"    }}");
                 sb.AppendLine($"  }}");
             }
@@ -95,6 +96,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine($"    }} catch (error) {{");
                 sb.AppendLine($"      await this.handleError(error);");
                 sb.AppendLine($"      return undefined;");
+                sb.AppendLine($"    }} finally {{");
+                sb.AppendLine($"      await this.CloseDB();");
                 sb.AppendLine($"    }}");
                 sb.AppendLine($"  }}");
             }
@@ -124,6 +127,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine($"    }} catch (error) {{");
                 sb.AppendLine($"      await this.handleError(error);");
                 sb.AppendLine($"      return undefined;");
+                sb.AppendLine($"    }} finally {{");
+                sb.AppendLine($"      await this.CloseDB();");
                 sb.AppendLine($"    }}");
                 sb.AppendLine($"  }}");
             }
@@ -153,6 +158,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine($"    }} catch (error) {{");
                 sb.AppendLine($"      await this.handleError(error);");
                 sb.AppendLine($"      return undefined;");
+                sb.AppendLine($"    }} finally {{");
+                sb.AppendLine($"      await this.CloseDB();");
                 sb.AppendLine($"    }}");
                 sb.AppendLine($"  }}");
             }
@@ -183,6 +190,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine($"    }} catch (error) {{");
                 sb.AppendLine($"      await this.handleError(error);");
                 sb.AppendLine($"      return undefined;");
+                sb.AppendLine($"    }} finally {{");
+                sb.AppendLine($"      await this.CloseDB();");
                 sb.AppendLine($"    }}");
                 sb.AppendLine($"  }}");
             }
@@ -250,6 +259,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     sb.AppendLine($"    }} catch (error) {{");
                     sb.AppendLine($"      await this.handleError(error);");
                     sb.AppendLine($"      return undefined;");
+                    sb.AppendLine($"    }} finally {{");
+                    sb.AppendLine($"      await this.CloseDB();");
                     sb.AppendLine($"    }}");
                     sb.AppendLine($"  }}");
                 }
@@ -287,6 +298,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     sb.AppendLine($"    }} catch (error) {{");
                     sb.AppendLine($"      await this.handleError(error);");
                     sb.AppendLine($"      return undefined;");
+                    sb.AppendLine($"    }} finally {{");
+                    sb.AppendLine($"      await this.CloseDB();");
                     sb.AppendLine($"    }}");
                     sb.AppendLine($"  }}");
                 }
