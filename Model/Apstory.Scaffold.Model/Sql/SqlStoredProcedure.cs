@@ -6,5 +6,6 @@
         public string Schema { get; set; }
         public string StoredProcedureName { get; set; }
         public List<SqlColumn> Parameters { get; set; } = new();
+        public string? CustomReturnType { get; set; }
     }
 }

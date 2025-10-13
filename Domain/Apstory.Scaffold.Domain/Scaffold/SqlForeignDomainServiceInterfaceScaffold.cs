@@ -223,12 +223,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string GenerateInterfaceMethod(SqlStoredProcedure sqlStoredProcedure)
         {
             var methodName = GetMethodNameWithFK(sqlStoredProcedure);
+            var returnTypeName = sqlStoredProcedure.GetReturnTypeName();
 
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
             if (useSeperateParameters)
             {
                 var sb = new StringBuilder();
-                sb.Append($"Task<List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+                sb.Append($"Task<List<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}>> {methodName}(");
 
                 foreach (var param in sqlStoredProcedure.Parameters)
                     if (!param.ColumnName.Equals("RetMsg", StringComparison.OrdinalIgnoreCase))
@@ -242,7 +243,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 return sb.ToString();
             }
             else
-                return $"Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()});";
+                return $"Task<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()});";
         }
 
         private string GetMethodNameWithFK(SqlStoredProcedure sqlStoredProcedure)

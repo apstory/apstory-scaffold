@@ -256,13 +256,14 @@ namespace Apstory.Scaffold.Domain.Scaffold
             var methodName = sqlStoredProcedure.GetMethodName();
             bool hasReturnValues = false;
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
-            bool returnLists = useSeperateParameters;
+            bool returnLists = useSeperateParameters || sqlStoredProcedure.HasCustomReturnType();
             bool returnsData = !methodName.StartsWith("Del");
+            var returnTypeName = sqlStoredProcedure.GetReturnTypeName();
 
             if (useSeperateParameters)
             {
                 if (returnsData)
-                    sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+                    sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}>> {methodName}(");
                 else
                     sb.Append($"public async Task {methodName}(");
 
@@ -282,15 +283,15 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine(")");
             }
             else
-                sb.Append($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCSharpSafeKeyword()})");
+                sb.Append($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCSharpSafeKeyword()})");
 
             sb.AppendLine("{");
 
             if (returnsData)
                 if (returnLists)
-                    sb.AppendLine($"    List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> ret{sqlStoredProcedure.TableName} = new List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>();");
+                    sb.AppendLine($"    List<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}> ret{returnTypeName} = new List<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}>();");
                 else if (returnsData)
-                    sb.AppendLine($"    {GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} ret{sqlStoredProcedure.TableName};");
+                    sb.AppendLine($"    {GetModelNamespace(sqlStoredProcedure)}.{returnTypeName} ret{returnTypeName};");
 
 
             sb.AppendLine("    DynamicParameters dParams = new DynamicParameters();");
@@ -331,9 +332,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
             if (returnsData)
             {
                 if (returnLists)
-                    sb.AppendLine($"        ret{sqlStoredProcedure.TableName} = (await connection.QueryAsync<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>(\"{sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}\", dParams, commandType: System.Data.CommandType.StoredProcedure)).AsList();");
+                    sb.AppendLine($"        ret{returnTypeName} = (await connection.QueryAsync<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}>(\"{sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}\", dParams, commandType: System.Data.CommandType.StoredProcedure)).AsList();");
                 else
-                    sb.AppendLine($"        ret{sqlStoredProcedure.TableName} = (await connection.QueryFirstOrDefaultAsync<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>(\"{sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}\", dParams, commandType: System.Data.CommandType.StoredProcedure));");
+                    sb.AppendLine($"        ret{returnTypeName} = (await connection.QueryFirstOrDefaultAsync<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}>(\"{sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}\", dParams, commandType: System.Data.CommandType.StoredProcedure));");
             }
             else
                 sb.AppendLine($"        await connection.ExecuteAsync(\"{sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}\", dParams, commandType: System.Data.CommandType.StoredProcedure);");
@@ -350,7 +351,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
 
             if (returnsData)
-                sb.AppendLine($"    return ret{sqlStoredProcedure.TableName};");
+                sb.AppendLine($"    return ret{returnTypeName};");
 
             sb.AppendLine("}");
 

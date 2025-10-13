@@ -209,6 +209,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string GenerateInterfaceMethod(SqlStoredProcedure sqlStoredProcedure)
         {
             var methodName = sqlStoredProcedure.GetMethodName();
+            var returnTypeName = sqlStoredProcedure.GetReturnTypeName();
 
             bool returnsData = !methodName.StartsWith("Del");
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
@@ -216,7 +217,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             {
                 var sb = new StringBuilder();
                 if (returnsData)
-                    sb.Append($"Task<List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+                    sb.Append($"Task<List<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}>> {methodName}(");
                 else
                     sb.Append($"Task {methodName}(");
 
@@ -232,7 +233,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 return sb.ToString();
             }
             else
-                return $"Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCSharpSafeKeyword()});";
+                return $"Task<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCSharpSafeKeyword()});";
         }
 
         private string GetInterfaceName(SqlStoredProcedure sqlStoredProcedure)

@@ -11,6 +11,15 @@ namespace Apstory.Scaffold.Domain.Parser
             SqlStoredProcedure sqlStoredProcedure = new SqlStoredProcedure();
 
             sqlProcScript = sqlProcScript.Trim();
+
+            // Extract custom return type from annotation comment
+            var returnTypeRx = Regex.Match(sqlProcScript, @".*@ReturnType:\s*(\w+(?:\.\w+)?)", RegexOptions.IgnoreCase);
+
+            if (returnTypeRx.Success)
+            {
+                sqlStoredProcedure.CustomReturnType = returnTypeRx.Groups[1].Value.Trim();
+            }
+
             var paramsPart = sqlProcScript.Substring(0, sqlProcScript.ToUpper().IndexOf("BEGIN") + 5);
 
             var fileNameRx = Regex.Match(paramsPart, @"CREATE\s+PROCEDURE\s+\[?(\w+)\]?\.?\[?(\w+)\]?.*?\(?(.*)\)?.*?AS.*?BEGIN", RegexOptions.Singleline);

@@ -262,7 +262,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             // Use StringBuilder to construct the method as a string
             var methodBuilder = new StringBuilder();
             var nonIdName = constraint.Column.Substring(0, constraint.Column.Length - 2);
-            methodBuilder.AppendLine($"protected async Task<List<{modelNs}.{tableName}>> Append{nonIdName}(List<{modelNs}.{tableName}> {tableName.ToCamelCase()}s)");
+            methodBuilder.AppendLine($"protected async Task Append{nonIdName}(IEnumerable<{modelNs}.{tableName}> {tableName.ToCamelCase()}s)");
             methodBuilder.AppendLine("{");
 
             var hasDefaultValue = !string.IsNullOrWhiteSpace(column.DefaultValue);
@@ -277,8 +277,6 @@ namespace Apstory.Scaffold.Domain.Scaffold
             methodBuilder.AppendLine("    {");
             methodBuilder.AppendLine($"        {safeTableName}.{nonIdName} = distinct{refTable}s.FirstOrDefault(s => s.{constraint.RefColumn} == {safeTableName}.{columnName});");
             methodBuilder.AppendLine("    }");
-            methodBuilder.AppendLine();
-            methodBuilder.AppendLine($"    return {tableName.ToCamelCase()}s;");
             methodBuilder.AppendLine("}");
 
             // Parse the method string into a MethodDeclarationSyntax
@@ -291,11 +289,12 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var sb = new StringBuilder();
             var methodName = GetMethodNameWithFK(sqlStoredProcedure);
+            var returnTypeName = sqlStoredProcedure.GetReturnTypeName();
 
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
             if (useSeperateParameters)
             {
-                sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure.Schema)}.{sqlStoredProcedure.TableName}>> {GetMethodNameWithFK(sqlStoredProcedure)}(");
+                sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure.Schema)}.{returnTypeName}>> {GetMethodNameWithFK(sqlStoredProcedure)}(");
 
                 foreach (var param in sqlStoredProcedure.Parameters)
                     if (!param.ColumnName.Equals("RetMsg", StringComparison.OrdinalIgnoreCase))
@@ -308,7 +307,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 sb.AppendLine(")");
                 sb.AppendLine("{");
 
-                sb.Append($"    var ret{sqlStoredProcedure.TableName} = await _repo.{sqlStoredProcedure.GetMethodName()}(");
+                sb.Append($"    var ret{returnTypeName} = await _repo.{sqlStoredProcedure.GetMethodName()}(");
                 foreach (var param in sqlStoredProcedure.Parameters)
                     if (!param.ColumnName.Equals("RetMsg", StringComparison.OrdinalIgnoreCase))
                         sb.Append($"{param.ColumnName.ToCamelCase()},");
@@ -320,17 +319,17 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 {
                     //Remove Id from the name to ensure when multiple FK's reference the same column we dont generate duplicates
                     var nonIdName = constraint.Column.Substring(0, constraint.Column.Length - 2);
-                    sb.AppendLine($"    await Append{nonIdName}(ret{sqlStoredProcedure.TableName});");
+                    sb.AppendLine($"    await Append{nonIdName}(ret{returnTypeName});");
                 }
 
-                sb.AppendLine($"    return ret{sqlStoredProcedure.TableName};");
+                sb.AppendLine($"    return ret{returnTypeName};");
                 sb.AppendLine("}");
 
                 return sb.ToString();
             }
             else
             {
-                sb.AppendLine($"public async Task<{GetModelNamespace(sqlStoredProcedure.Schema)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure.Schema)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()})");
+                sb.AppendLine($"public async Task<{GetModelNamespace(sqlStoredProcedure.Schema)}.{returnTypeName}> {methodName}({GetModelNamespace(sqlStoredProcedure.Schema)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCamelCase()})");
                 sb.AppendLine("{");
                 sb.AppendLine($"    return await _repo.{GetMethodNameWithFK(sqlStoredProcedure)}({sqlStoredProcedure.TableName.ToCamelCase()});");
                 sb.AppendLine("}");

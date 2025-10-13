@@ -242,6 +242,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
         {
             var sb = new StringBuilder();
             var methodName = sqlStoredProcedure.GetMethodName();
+            var returnTypeName = sqlStoredProcedure.GetReturnTypeName();
 
             bool useSeperateParameters = !methodName.StartsWith("InsUpd");
             bool returnsData = !methodName.StartsWith("Del");
@@ -249,7 +250,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             if (useSeperateParameters)
             {
                 if (returnsData)
-                    sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}>> {methodName}(");
+                    sb.Append($"public async Task<List<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}>> {methodName}(");
                 else
                     sb.Append($"public async Task {methodName}(");
 
@@ -281,7 +282,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
             else
             {
-                sb.AppendLine($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCSharpSafeKeyword()})");
+                sb.AppendLine($"public async Task<{GetModelNamespace(sqlStoredProcedure)}.{returnTypeName}> {methodName}({GetModelNamespace(sqlStoredProcedure)}.{sqlStoredProcedure.TableName} {sqlStoredProcedure.TableName.ToCSharpSafeKeyword()})");
                 sb.AppendLine("{");
                 sb.AppendLine($"    return await _repo.{methodName}({sqlStoredProcedure.TableName.ToCSharpSafeKeyword()});");
                 sb.AppendLine("}");

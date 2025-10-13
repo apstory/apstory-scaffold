@@ -96,5 +96,17 @@ namespace Apstory.Scaffold.Domain.Util
 
             return tableName.ToCamelCase();
         }
+
+        public static string GetReturnTypeName(this SqlStoredProcedure sqlStoredProcedure)
+        {
+            return string.IsNullOrWhiteSpace(sqlStoredProcedure.CustomReturnType)
+                ? sqlStoredProcedure.TableName
+                : sqlStoredProcedure.CustomReturnType;
+        }
+
+        public static bool HasCustomReturnType(this SqlStoredProcedure sqlStoredProcedure)
+        {
+            return !string.IsNullOrWhiteSpace(sqlStoredProcedure.CustomReturnType);
+        }
     }
 }
