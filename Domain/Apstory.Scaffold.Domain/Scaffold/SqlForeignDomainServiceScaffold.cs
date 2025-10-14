@@ -262,7 +262,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             // Use StringBuilder to construct the method as a string
             var methodBuilder = new StringBuilder();
             var nonIdName = constraint.Column.Substring(0, constraint.Column.Length - 2);
-            methodBuilder.AppendLine($"protected async Task Append{nonIdName}(IEnumerable<{modelNs}.{tableName}> {tableName.ToCamelCase()}s)");
+            methodBuilder.AppendLine($"protected async Task Append{nonIdName}(List<{modelNs}.{tableName}> {tableName.ToCamelCase()}s)");
             methodBuilder.AppendLine("{");
 
             var hasDefaultValue = !string.IsNullOrWhiteSpace(column.DefaultValue);
