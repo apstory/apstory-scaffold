@@ -1,0 +1,90 @@
+<idea-plugin>
+    <id>com.apstory.scaffold.rider</id>
+    <name>Apstory Scaffold</name>
+    <vendor email="support@apstory.com" url="https://github.com/Apstory/Apstory.Scaffold">Apstory</vendor>
+
+    <description><![CDATA[
+    <p>Code scaffolding tool for MSSQL databases with CRUD stored procedures and C# code generation.</p>
+    <p>Features:</p>
+    <ul>
+      <li>Run Code Scaffold - Generate C# code from SQL table definitions</li>
+      <li>Push SQL Changes - Push SQL changes to database</li>
+      <li>Delete Generated Code - Clean up generated files</li>
+      <li>Generate SQLite Repository - Create TypeScript repositories</li>
+    </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.rider</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Configuration -->
+        <applicationService serviceImplementation="com.apstory.scaffold.rider.services.ScaffoldConfigService"/>
+    </extensions>
+
+    <actions>
+        <!-- SQL File Context Menu Actions -->
+        <group id="ApstoryScaffold.SqlFileMenu"
+               text="Scaffold"
+               description="Apstory Scaffold commands for SQL files"
+               popup="true">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+
+            <action id="ApstoryScaffold.RunCodeScaffold"
+                    class="com.apstory.scaffold.rider.actions.RunCodeScaffoldAction"
+                    text="Run Code Scaffold"
+                    description="Generate C# code from SQL table definition">
+            </action>
+
+            <action id="ApstoryScaffold.PushSqlChanges"
+                    class="com.apstory.scaffold.rider.actions.PushSqlChangesAction"
+                    text="Push SQL Changes"
+                    description="Push SQL changes to database">
+            </action>
+
+            <action id="ApstoryScaffold.Delete"
+                    class="com.apstory.scaffold.rider.actions.DeleteGeneratedCodeAction"
+                    text="Delete Generated Code"
+                    description="Delete generated code files">
+            </action>
+
+            <separator/>
+
+            <action id="ApstoryScaffold.Configure"
+                    class="com.apstory.scaffold.rider.actions.ConfigureAction"
+                    text="Configure"
+                    description="Configure Apstory Scaffold settings">
+            </action>
+        </group>
+
+        <!-- TypeScript File Context Menu Actions -->
+        <group id="ApstoryScaffold.TypeScriptFileMenu"
+               text="Scaffold"
+               description="Apstory Scaffold commands for TypeScript files"
+               popup="true">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+
+            <action id="ApstoryScaffold.GenerateSQLiteRepo"
+                    class="com.apstory.scaffold.rider.actions.GenerateSQLiteRepoAction"
+                    text="Generate SQLite Repository"
+                    description="Generate SQLite repository for TypeScript">
+            </action>
+        </group>
+
+        <!-- Tools Menu -->
+        <group id="ApstoryScaffold.ToolsMenu"
+               text="Apstory Scaffold"
+               description="Apstory Scaffold tools"
+               popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+
+            <action id="ApstoryScaffold.ShowCommands"
+                    class="com.apstory.scaffold.rider.actions.ShowCommandsAction"
+                    text="Show Commands"
+                    description="Show all available Apstory Scaffold commands">
+            </action>
+        </group>
+    </actions>
+</idea-plugin>
