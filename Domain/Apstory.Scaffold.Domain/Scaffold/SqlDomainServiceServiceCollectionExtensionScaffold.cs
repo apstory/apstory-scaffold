@@ -25,29 +25,29 @@ namespace Apstory.Scaffold.Domain.Scaffold
         public async Task<ScaffoldResult> DeleteCode(SqlStoredProcedure sqlStoredProcedure)
         {
             var scaffoldingResult = ScaffoldResult.Updated;
-            var dalRepoScePath = GetFilePath(sqlStoredProcedure);
+            var domainServiceScePath = GetFilePath(sqlStoredProcedure);
 
-            if (!File.Exists(dalRepoScePath))
+            if (!File.Exists(domainServiceScePath))
                 return ScaffoldResult.Skipped;
 
             try
             {
-                await _lockingService.AcquireLockAsync(dalRepoScePath);
+                await _lockingService.AcquireLockAsync(domainServiceScePath);
 
-                var existingFileContent = FileUtils.SafeReadAllText(dalRepoScePath);
+                var existingFileContent = FileUtils.SafeReadAllText(domainServiceScePath);
                 var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
 
                 var updatedFileContent = RemoveMethodStatement(syntaxTree.GetRoot(), sqlStoredProcedure);
                 if (string.IsNullOrEmpty(updatedFileContent))
                 {
-                    File.Delete(dalRepoScePath);
-                    Logger.LogSuccess($"[Deleted SCE Service] {dalRepoScePath}");
+                    File.Delete(domainServiceScePath);
+                    Logger.LogSuccess($"[Deleted SCE Service] {domainServiceScePath}");
                     scaffoldingResult = ScaffoldResult.Deleted;
                 }
                 else
                 {
-                    FileUtils.WriteTextAndDirectory(dalRepoScePath, updatedFileContent);
-                    Logger.LogSuccess($"[Updated SCE Service] {dalRepoScePath} removed Dependency Injection {sqlStoredProcedure.TableName}");
+                    FileUtils.WriteTextAndDirectory(domainServiceScePath, updatedFileContent);
+                    Logger.LogSuccess($"[Updated SCE Service] {domainServiceScePath} removed Dependency Injection {sqlStoredProcedure.TableName}");
                 }
 
             }
@@ -57,7 +57,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
             finally
             {
-                _lockingService.ReleaseLock(dalRepoScePath);
+                _lockingService.ReleaseLock(domainServiceScePath);
             }
             return scaffoldingResult;
         }
@@ -65,23 +65,23 @@ namespace Apstory.Scaffold.Domain.Scaffold
         public async Task<ScaffoldResult> GenerateCode(SqlStoredProcedure sqlStoredProcedure)
         {
             var scaffoldingResult = ScaffoldResult.Updated;
-            var dalRepoScePath = GetFilePath(sqlStoredProcedure);
+            var domainServiceScePath = GetFilePath(sqlStoredProcedure);
             var existingFileContent = string.Empty;
 
             try
             {
-                await _lockingService.AcquireLockAsync(dalRepoScePath);
+                await _lockingService.AcquireLockAsync(domainServiceScePath);
 
                 SyntaxNode syntaxNode;
-                if (!File.Exists(dalRepoScePath))
+                if (!File.Exists(domainServiceScePath))
                 {
                     scaffoldingResult = ScaffoldResult.Created;
-                    Logger.LogWarn($"[File does not exist] Creating {dalRepoScePath}");
+                    Logger.LogWarn($"[File does not exist] Creating {domainServiceScePath}");
                     syntaxNode = CreateCSharpFileOutline(sqlStoredProcedure);
                 }
                 else
                 {
-                    existingFileContent = FileUtils.SafeReadAllText(dalRepoScePath);
+                    existingFileContent = FileUtils.SafeReadAllText(domainServiceScePath);
                     var syntaxTree = CSharpSyntaxTree.ParseText(existingFileContent);
                     syntaxNode = syntaxTree.GetRoot();
                 }
@@ -92,8 +92,8 @@ namespace Apstory.Scaffold.Domain.Scaffold
                 var updatedFileContent = UpdateMethodStatements(syntaxNode, sqlStoredProcedure, registrationStatement);
                 if (!existingFileContent.Equals(updatedFileContent))
                 {
-                    FileUtils.WriteTextAndDirectory(dalRepoScePath, updatedFileContent);
-                    Logger.LogSuccess($"[Created SCE Service] {dalRepoScePath} for method {sqlStoredProcedure.StoredProcedureName}");
+                    FileUtils.WriteTextAndDirectory(domainServiceScePath, updatedFileContent);
+                    Logger.LogSuccess($"[Created SCE Service] {domainServiceScePath} for method {sqlStoredProcedure.StoredProcedureName}");
                 }
                 else
                 {
@@ -112,7 +112,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             }
             finally
             {
-                _lockingService.ReleaseLock(dalRepoScePath);
+                _lockingService.ReleaseLock(domainServiceScePath);
             }
 
             return scaffoldingResult;
@@ -153,10 +153,18 @@ namespace Apstory.Scaffold.Domain.Scaffold
                                               {
                                                   if (stmt.Expression is InvocationExpressionSyntax invocation &&
                                                       invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-                                                      memberAccess.Name.Identifier.Text == "AddTransient")
+                                                      memberAccess.Name is GenericNameSyntax genericName &&
+                                                      genericName.Identifier.Text == "AddTransient")
                                                   {
-                                                      return invocation.ArgumentList.Arguments.Any() &&
-                                                             invocation.ArgumentList.Arguments[0].ToString().Equals($"x => new {sqlStoredProcedure.TableName}Service(connectionString)");
+                                                      // Check if this is a registration for the target service
+                                                      var typeArgs = genericName.TypeArgumentList.Arguments;
+                                                      if (typeArgs.Count >= 2)
+                                                      {
+                                                          var interfaceType = typeArgs[0].ToString();
+                                                          var concreteType = typeArgs[1].ToString();
+                                                          return interfaceType == $"I{sqlStoredProcedure.TableName}Service" &&
+                                                                 concreteType == $"{sqlStoredProcedure.TableName}Service";
+                                                      }
                                                   }
                                                   return false;
                                               });
@@ -190,14 +198,21 @@ namespace Apstory.Scaffold.Domain.Scaffold
             bool exists = method.Body.Statements.OfType<ExpressionStatementSyntax>()
                                 .Any(stmt =>
                                 {
-                                    if (stmt.Expression is InvocationExpressionSyntax invocation)
-                                        if (invocation.Expression is MemberAccessExpressionSyntax memberAccess)
-                                            // Check if the method being called is "AddTransient"
-                                            if (memberAccess.Name.Identifier.Text == "AddTransient")
-                                            {
-                                                return (invocation.ArgumentList.Arguments.Any() &&
-                                                        invocation.ArgumentList.Arguments[0].ToString().Equals($"x => new {sqlStoredProcedure.TableName}Service(connectionString)"));
-                                            }
+                                    if (stmt.Expression is InvocationExpressionSyntax invocation &&
+                                        invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
+                                        memberAccess.Name is GenericNameSyntax genericName &&
+                                        genericName.Identifier.Text == "AddTransient")
+                                    {
+                                        // Check if this is a registration for the target service
+                                        var typeArgs = genericName.TypeArgumentList.Arguments;
+                                        if (typeArgs.Count >= 2)
+                                        {
+                                            var interfaceType = typeArgs[0].ToString();
+                                            var concreteType = typeArgs[1].ToString();
+                                            return interfaceType == $"I{sqlStoredProcedure.TableName}Service" &&
+                                                   concreteType == $"{sqlStoredProcedure.TableName}Service";
+                                        }
+                                    }
 
                                     return false;
                                 });
