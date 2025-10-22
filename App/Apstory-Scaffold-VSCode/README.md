@@ -11,7 +11,28 @@ This generates a .vsix file, which you can install in VSCode by dragging it into
 
 ## Features
 
-Generate full transaction search screens
+### SQL Code Scaffolding
+Right-click on one or more SQL files (tables or stored procedures) and select **Scaffold > Run Code Scaffold** to automatically generate:
+- C# Models
+- Repository layer code
+- Service layer code
+- Database stored procedures
+
+The extension extracts the schema and entity name from the SQL file path and executes `Apstory.Scaffold.App -regen dbo.[NameOfTableOrProc]`.
+
+**Supported file structures:**
+- `<schema>/Tables/<TableName>.sql` - for table files
+- `<schema>/Stored Procedures/<ProcName>.sql` - for stored procedure files
+
+**Multi-file support:** Select multiple SQL files in the explorer to scaffold them all at once.
+
+### SQLite Repository Generation
+Generate SQLite repository TypeScript files from TypeScript model files.
+
+### Other Features
+- Push SQL changes to a database
+- Delete generated code
+- Configuration management
 
 ## Requirements
 
