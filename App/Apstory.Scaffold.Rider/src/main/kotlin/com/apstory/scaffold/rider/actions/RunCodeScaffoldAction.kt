@@ -7,9 +7,8 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.terminal.TerminalExecutionConsole
-import org.jetbrains.plugins.terminal.ShellTerminalWidget
-import org.jetbrains.plugins.terminal.TerminalView
+import org.jetbrains.plugins.terminal.ShellStartupOptions
+import org.jetbrains.plugins.terminal.TerminalToolWindowManager
 
 class RunCodeScaffoldAction : AnAction() {
 
@@ -61,8 +60,11 @@ class RunCodeScaffoldAction : AnAction() {
     }
 
     private fun executeInTerminal(project: Project, command: String, workingDirectory: String) {
-        val terminalView = TerminalView.getInstance(project)
-        val widget = terminalView.createLocalShellWidget(workingDirectory, "Scaffold")
-        widget.executeCommand(command)
+        val terminalManager = TerminalToolWindowManager.getInstance(project)
+        val shellStartupOptions = ShellStartupOptions.Builder()
+            .workingDirectory(workingDirectory)
+            .build()
+        val shellWidget = terminalManager.createShellWidget(workingDirectory, "Scaffold", true, true)
+        shellWidget.sendCommandToExecute(command)
     }
 }

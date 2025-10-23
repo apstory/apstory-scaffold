@@ -6,7 +6,8 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
-import org.jetbrains.plugins.terminal.TerminalView
+import org.jetbrains.plugins.terminal.ShellStartupOptions
+import org.jetbrains.plugins.terminal.TerminalToolWindowManager
 
 class GenerateSQLiteRepoAction : AnAction() {
 
@@ -49,8 +50,11 @@ class GenerateSQLiteRepoAction : AnAction() {
     }
 
     private fun executeInTerminal(project: Project, command: String, workingDirectory: String) {
-        val terminalView = TerminalView.getInstance(project)
-        val widget = terminalView.createLocalShellWidget(workingDirectory, "SQLite Repo")
-        widget.executeCommand(command)
+        val terminalManager = TerminalToolWindowManager.getInstance(project)
+        val shellStartupOptions = ShellStartupOptions.Builder()
+            .workingDirectory(workingDirectory)
+            .build()
+        val shellWidget = terminalManager.createShellWidget(workingDirectory, "SQLite Repo", true, true)
+        shellWidget.sendCommandToExecute(command)
     }
 }

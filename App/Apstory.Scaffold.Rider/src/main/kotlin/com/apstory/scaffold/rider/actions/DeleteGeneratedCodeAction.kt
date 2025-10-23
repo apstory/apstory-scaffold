@@ -6,7 +6,8 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
-import org.jetbrains.plugins.terminal.TerminalView
+import org.jetbrains.plugins.terminal.ShellStartupOptions
+import org.jetbrains.plugins.terminal.TerminalToolWindowManager
 
 class DeleteGeneratedCodeAction : AnAction() {
 
@@ -69,8 +70,11 @@ class DeleteGeneratedCodeAction : AnAction() {
     }
 
     private fun executeInTerminal(project: Project, command: String, workingDirectory: String) {
-        val terminalView = TerminalView.getInstance(project)
-        val widget = terminalView.createLocalShellWidget(workingDirectory, "Delete Code")
-        widget.executeCommand(command)
+        val terminalManager = TerminalToolWindowManager.getInstance(project)
+        val shellStartupOptions = ShellStartupOptions.Builder()
+            .workingDirectory(workingDirectory)
+            .build()
+        val shellWidget = terminalManager.createShellWidget(workingDirectory, "Delete Code", true, true)
+        shellWidget.sendCommandToExecute(command)
     }
 }

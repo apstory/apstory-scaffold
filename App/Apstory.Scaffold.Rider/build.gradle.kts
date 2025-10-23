@@ -15,9 +15,9 @@ dependencies {
 }
 
 intellij {
-    version.set("2023.3.2")
+    version.set("2024.3")
     type.set("RD")
-    plugins.set(listOf("rider-plugins-appender"))
+    plugins.set(listOf("terminal"))
 
     // Disable auto-update
     updateSinceUntilBuild.set(false)
@@ -30,7 +30,7 @@ tasks {
 
     patchPluginXml {
         version.set(project.version.toString())
-        sinceBuild.set("233")
+        sinceBuild.set("243")
         untilBuild.set("")
     }
 
@@ -45,10 +45,15 @@ tasks {
     }
 
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "17"
+        kotlinOptions.jvmTarget = "21"
     }
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }

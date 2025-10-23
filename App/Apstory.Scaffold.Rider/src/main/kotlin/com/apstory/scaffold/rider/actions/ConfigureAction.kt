@@ -33,11 +33,12 @@ class ConfigureAction : AnAction() {
         }
 
         override fun createCenterPanel(): JComponent {
+            sqlDestinationField.toolTipText = "Database connection string for pushing SQL changes"
+            powershellScriptField.toolTipText = "Path to TypeScript generation PowerShell script (relative or absolute)"
+
             return FormBuilder.createFormBuilder()
                 .addLabeledComponent(JBLabel("SQL Destination (Connection String):"), sqlDestinationField, 1, false)
-                .addComponentTooltip(sqlDestinationField, "Database connection string for pushing SQL changes")
                 .addLabeledComponent(JBLabel("PowerShell Script:"), powershellScriptField, 1, false)
-                .addComponentTooltip(powershellScriptField, "Path to TypeScript generation PowerShell script (relative or absolute)")
                 .addComponentFillVertically(JPanel(), 0)
                 .panel
         }
