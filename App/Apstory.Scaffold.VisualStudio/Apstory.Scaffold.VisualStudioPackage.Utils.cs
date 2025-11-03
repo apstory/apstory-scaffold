@@ -248,17 +248,22 @@ namespace Apstory.Scaffold.VisualStudio
                 return;
 
             // Create a new pane or get the existing one
-            Guid generalPaneGuid = VSConstants.GUID_OutWindowGeneralPane;
-            outputWindow.GetPane(ref generalPaneGuid, out IVsOutputWindowPane outputPane);
+            // Use a custom GUID for the Apstory output pane (not the general pane)
+            Guid apstoryPaneGuid = new Guid("8B2F6C1A-9D4E-4B5F-A3C7-1E8D9F0A2B3C");
+            outputWindow.GetPane(ref apstoryPaneGuid, out IVsOutputWindowPane outputPane);
 
             if (outputPane == null)
             {
-                outputWindow.CreatePane(ref generalPaneGuid, "Apstory Scaffold", 1, 1);
-                outputWindow.GetPane(ref generalPaneGuid, out outputPane);
+                outputWindow.CreatePane(ref apstoryPaneGuid, "Apstory Scaffold", 1, 1);
+                outputWindow.GetPane(ref apstoryPaneGuid, out outputPane);
             }
 
-            // Write message to the pane
-            outputPane.OutputString(message + "\n");
+            // Activate and show the pane when writing to it
+            if (outputPane != null)
+            {
+                outputPane.Activate(); // Bring the pane into view
+                outputPane.OutputString(message + "\n");
+            }
         }
 
         private string GetConfigPath()
