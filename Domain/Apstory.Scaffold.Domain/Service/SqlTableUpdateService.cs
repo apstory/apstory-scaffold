@@ -18,7 +18,7 @@ namespace Apstory.Scaffold.Domain.Service
 
         public async Task<TableUpdateResult> GenerateTableUpdateScript(string connectionString, SqlTable sourceTable, bool blockOnDataLoss)
         {
-            var result = new TableUpdateResult { Success = true };
+            var result = new TableUpdateResult();
 
             try
             {
@@ -34,7 +34,11 @@ namespace Apstory.Scaffold.Domain.Service
                 }
 
                 // Compare and generate ALTER statements
-                result = CompareAndGenerateAlterStatements(existingColumns, sourceTable, blockOnDataLoss);
+                var compareResult = CompareAndGenerateAlterStatements(existingColumns, sourceTable, blockOnDataLoss);
+                result.Success = compareResult.Success;
+                result.HasDataLoss = compareResult.HasDataLoss;
+                result.DataLossReasons = compareResult.DataLossReasons;
+                result.SqlStatements = compareResult.SqlStatements;
             }
             catch (Exception ex)
             {
@@ -215,16 +219,16 @@ namespace Apstory.Scaffold.Domain.Service
                 // Changing to a potentially smaller type
                 var potentialDataLossConversions = new[]
                 {
-                    ("BIGINT", "INT"),
-                    ("INT", "SMALLINT"),
-                    ("SMALLINT", "TINYINT"),
-                    ("DECIMAL", "INT"),
-                    ("FLOAT", "DECIMAL"),
-                    ("NVARCHAR", "VARCHAR"), // Unicode to ANSI
-                    ("DATETIME2", "DATETIME"), // Precision loss
+                    (From: "BIGINT", To: "INT"),
+                    (From: "INT", To: "SMALLINT"),
+                    (From: "SMALLINT", To: "TINYINT"),
+                    (From: "DECIMAL", To: "INT"),
+                    (From: "FLOAT", To: "DECIMAL"),
+                    (From: "NVARCHAR", To: "VARCHAR"), // Unicode to ANSI
+                    (From: "DATETIME2", To: "DATETIME"), // Precision loss
                 };
 
-                if (potentialDataLossConversions.Any(c => c.Item1 == existingType && c.Item2 == sourceType))
+                if (potentialDataLossConversions.Any(c => c.From == existingType && c.To == sourceType))
                     return true;
             }
 
@@ -273,6 +277,7 @@ namespace Apstory.Scaffold.Domain.Service
         {
             var dataTypeStr = FormatDataType(column.DataType, column.DataTypeLength);
             var nullableStr = column.IsNullable ? "NULL" : "NOT NULL";
+            // Note: DefaultValue comes from the parsed SQL file and is trusted source code, not user input
             var defaultStr = string.IsNullOrEmpty(column.DefaultValue) ? "" : $" {column.DefaultValue}";
 
             return $"ALTER TABLE [{schema}].[{tableName}] ADD [{column.ColumnName}] {dataTypeStr} {nullableStr}{defaultStr};";
