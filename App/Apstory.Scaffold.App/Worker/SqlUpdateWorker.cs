@@ -7,6 +7,7 @@ using Microsoft.Data.SqlClient;
 using Dapper;
 using System.Diagnostics;
 using Apstory.Scaffold.Domain.Parser;
+using Apstory.Scaffold.Domain.Service;
 
 namespace Apstory.Scaffold.App.Worker
 {
@@ -15,20 +16,37 @@ namespace Apstory.Scaffold.App.Worker
         private readonly IHostApplicationLifetime _lifetime;
         private readonly IConfiguration _configuration;
         private readonly CSharpConfig _csharpConfig;
+        private readonly SqlTableUpdateService _tableUpdateService;
 
         public SqlUpdateWorker(IHostApplicationLifetime lifetime,
                                IConfiguration configuration,
-                               CSharpConfig csharpConfig)
+                               CSharpConfig csharpConfig,
+                               SqlTableUpdateService tableUpdateService)
         {
             _lifetime = lifetime;
             _configuration = configuration;
             _csharpConfig = csharpConfig;
+            _tableUpdateService = tableUpdateService;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var connectionString = _configuration["sqlDestination"];
             var args = _configuration["sqlPush"];
+            var blockOnDataLossStr = _configuration["blockOnDataLoss"];
+            
+            // Default to true (block on data loss by default)
+            bool blockOnDataLoss = true;
+            if (!string.IsNullOrEmpty(blockOnDataLossStr))
+            {
+                if (!bool.TryParse(blockOnDataLossStr, out blockOnDataLoss))
+                {
+                    Logger.LogWarn($"Invalid value for -blockondataloss: '{blockOnDataLossStr}'. Using default: true");
+                    blockOnDataLoss = true;
+                }
+            }
+
+            Logger.LogInfo($"Block on Data Loss: {blockOnDataLoss}");
 
             if (connectionString is null)
             {
@@ -88,7 +106,7 @@ namespace Apstory.Scaffold.App.Worker
                 if (File.Exists(tablePath))
                 {
                     Logger.LogInfo($"Push Table {schema}.{entityName}");
-                    await PushTableChanges(connectionString, tablePath);
+                    await PushTableChanges(connectionString, tablePath, blockOnDataLoss);
                 }
                 else
                 {
@@ -150,20 +168,10 @@ namespace Apstory.Scaffold.App.Worker
             }
         }
 
-        private async Task PushTableChanges(string connectionString, string tablePath)
+        private async Task PushTableChanges(string connectionString, string tablePath, bool blockOnDataLoss)
         {
-            //In SQL Server, you cannot directly specify the column position when adding a column to an existing table 
-            //The workaround is to:
-            //1. Create a new table
-            //2. Copy data across to new table
-            //3. Rename old table to _backup
-            //4. Rename new table to old table
-            //5. Drop old table
-            //6. Be careful of foreign keys, they sneaky...
-
             try
             {
-                //TLDR: this is too much work, we will simply try create the table if it does not exist:
                 var createTableScript = FileUtils.SafeReadAllText(tablePath);
                 var tableInfo = SqlTableParser.Parse(tablePath, createTableScript);
 
@@ -176,7 +184,54 @@ namespace Apstory.Scaffold.App.Worker
                 }
                 else
                 {
-                    Logger.LogWarn($"Table {tableInfo.Schema}.{tableInfo.TableName} already exists, skipping.");
+                    Logger.LogInfo($"Table {tableInfo.Schema}.{tableInfo.TableName} already exists, checking for updates...");
+                    
+                    // Use the new service to generate update script
+                    var updateResult = await _tableUpdateService.GenerateTableUpdateScript(connectionString, tableInfo, blockOnDataLoss);
+                    
+                    if (!updateResult.Success)
+                    {
+                        if (updateResult.HasDataLoss && blockOnDataLoss)
+                        {
+                            Logger.LogError($"Table update blocked due to potential data loss:");
+                            foreach (var reason in updateResult.DataLossReasons)
+                            {
+                                Logger.LogError($"  - {reason}");
+                            }
+                            Logger.LogError($"To proceed with these changes, run with -blockondataloss false");
+                        }
+                        else if (!string.IsNullOrEmpty(updateResult.ErrorMessage))
+                        {
+                            Logger.LogError($"Error generating table update: {updateResult.ErrorMessage}");
+                        }
+                        return;
+                    }
+                    
+                    if (updateResult.SqlStatements.Count == 0)
+                    {
+                        Logger.LogInfo($"No changes detected for table {tableInfo.Schema}.{tableInfo.TableName}");
+                        return;
+                    }
+                    
+                    // Display warnings if there's data loss but we're proceeding
+                    if (updateResult.HasDataLoss && !blockOnDataLoss)
+                    {
+                        Logger.LogWarn($"WARNING: Proceeding with changes that may cause data loss:");
+                        foreach (var reason in updateResult.DataLossReasons)
+                        {
+                            Logger.LogWarn($"  - {reason}");
+                        }
+                    }
+                    
+                    // Execute the update statements
+                    Logger.LogInfo($"Applying {updateResult.SqlStatements.Count} change(s) to table {tableInfo.Schema}.{tableInfo.TableName}:");
+                    foreach (var sqlStatement in updateResult.SqlStatements)
+                    {
+                        Logger.LogDebug($"  Executing: {sqlStatement}");
+                        await ExecuteSql(connectionString, sqlStatement);
+                    }
+                    
+                    Logger.LogInfo($"Table {tableInfo.Schema}.{tableInfo.TableName} updated successfully.");
                 }
             }
             catch (Exception ex)
