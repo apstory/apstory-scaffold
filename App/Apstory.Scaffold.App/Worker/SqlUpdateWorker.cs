@@ -37,10 +37,16 @@ namespace Apstory.Scaffold.App.Worker
             
             // Default to true (block on data loss by default)
             bool blockOnDataLoss = true;
-            if (!string.IsNullOrEmpty(blockOnDataLossStr) && !bool.TryParse(blockOnDataLossStr, out blockOnDataLoss))
+            if (!string.IsNullOrEmpty(blockOnDataLossStr))
             {
-                Logger.LogWarn($"Invalid value for -blockondataloss: '{blockOnDataLossStr}'. Using default: true");
-                blockOnDataLoss = true;
+                if (bool.TryParse(blockOnDataLossStr, out var parsedValue))
+                {
+                    blockOnDataLoss = parsedValue;
+                }
+                else
+                {
+                    Logger.LogWarn($"Invalid value for -blockondataloss: '{blockOnDataLossStr}'. Using default: true");
+                }
             }
 
             Logger.LogInfo($"Block on Data Loss: {blockOnDataLoss}");

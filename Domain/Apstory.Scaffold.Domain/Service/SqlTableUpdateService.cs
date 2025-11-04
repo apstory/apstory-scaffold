@@ -264,7 +264,14 @@ namespace Apstory.Scaffold.Domain.Service
                         int.TryParse(existingParts[1], out int existingScale) &&
                         int.TryParse(sourceParts[1], out int sourceScale))
                     {
-                        if (sourcePrecision < existingPrecision || sourceScale < existingScale)
+                        // Check if scale is reduced (fractional part)
+                        if (sourceScale < existingScale)
+                            return true;
+                            
+                        // Check if integer part is reduced (precision - scale)
+                        int existingIntegerDigits = existingPrecision - existingScale;
+                        int sourceIntegerDigits = sourcePrecision - sourceScale;
+                        if (sourceIntegerDigits < existingIntegerDigits)
                             return true;
                     }
                 }
@@ -277,8 +284,20 @@ namespace Apstory.Scaffold.Domain.Service
         {
             var dataTypeStr = FormatDataType(column.DataType, column.DataTypeLength);
             var nullableStr = column.IsNullable ? "NULL" : "NOT NULL";
-            // Note: DefaultValue comes from the parsed SQL file and is trusted source code, not user input
-            var defaultStr = string.IsNullOrEmpty(column.DefaultValue) ? "" : $" {column.DefaultValue}";
+            
+            // DefaultValue comes from parsed SQL file - validate it starts with DEFAULT to prevent malformed SQL
+            var defaultStr = "";
+            if (!string.IsNullOrEmpty(column.DefaultValue))
+            {
+                if (column.DefaultValue.Trim().StartsWith("DEFAULT", StringComparison.OrdinalIgnoreCase))
+                {
+                    defaultStr = $" {column.DefaultValue}";
+                }
+                else
+                {
+                    Logger.LogWarn($"Invalid DEFAULT value format for column {column.ColumnName}: '{column.DefaultValue}'. Skipping default.");
+                }
+            }
 
             return $"ALTER TABLE [{schema}].[{tableName}] ADD [{column.ColumnName}] {dataTypeStr} {nullableStr}{defaultStr};";
         }
