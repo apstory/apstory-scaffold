@@ -106,7 +106,6 @@ class Program
 
                     services.AddTransient<SqlDalRepositoryScaffold>();
                     services.AddTransient<SqlScriptFileScaffold>();
-                    services.AddTransient<SqlProjectScaffold>();
                     services.AddTransient<SqlModelScaffold>();
                     services.AddTransient<SqlDalRepositoryInterfaceScaffold>();
                     services.AddTransient<SqlDomainServiceScaffold>();
