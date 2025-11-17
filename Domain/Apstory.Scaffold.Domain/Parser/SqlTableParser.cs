@@ -55,7 +55,7 @@ namespace Apstory.Scaffold.Domain.Parser
                                        .Where(s => !string.IsNullOrWhiteSpace(s));
 
                 // Define regex to extract column details
-                var columnRegex = new Regex(@"\[(\w+)\]\s*(\w+)\s*(\([\d,\w]+\))?\s?.*?(DEFAULT\s*\(.*\))?\s*(NOT\s+NULL|NULL)", RegexOptions.IgnoreCase);
+                var columnRegex = new Regex(@"\[(\w+)\]\s*(\w+)\s*(\([\d,\w\s]+\))?\s?.*?(DEFAULT\s*\(.*\))?\s*(NOT\s+NULL|NULL)", RegexOptions.IgnoreCase);
 
                 // Parse columns
                 foreach (var line in columnLines)
@@ -65,7 +65,7 @@ namespace Apstory.Scaffold.Domain.Parser
                     {
                         ColumnName = match.Groups[1].Value,
                         DataType = match.Groups[2].Value,
-                        DataTypeLength = match.Groups[3].Value.Trim(')', '('),
+                        DataTypeLength = match.Groups[3].Value.Trim(')', '(').Trim(),
                         DefaultValue = match.Groups[4].Value,
                         IsNullable = !match.Groups[5].Value.StartsWith("NOT", StringComparison.OrdinalIgnoreCase),
                     };
