@@ -271,7 +271,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             else
                 methodBuilder.AppendLine($"    var distinct{columnName}s = {tableName.ToCamelCase()}s.Select(s => s.{columnName}).Distinct().ToList();");
 
-            methodBuilder.AppendLine($"    var distinct{refTable}s = await _{refTable.ToCamelCase()}Repo.Get{refTable}By{refTable}Ids(distinct{columnName}s, null);");
+            methodBuilder.AppendLine($"    var distinct{refTable}s = await _{refTable.ToCamelCase()}Repo.Get{refTable}By{refTable}Ids(distinct{columnName}s);");
             methodBuilder.AppendLine();
             methodBuilder.AppendLine($"    foreach (var {safeTableName} in {tableName.ToCamelCase()}s)");
             methodBuilder.AppendLine("    {");
