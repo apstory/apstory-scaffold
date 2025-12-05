@@ -242,15 +242,15 @@ namespace Apstory.Scaffold.Domain.Scaffold
             // Generate procedure parameters for the UDTT
             if (primaryKey.DataType == "INT")
             {
-                sb.AppendLine("  (@Ids udtt_Ints READONLY, @IsActive bit=NULL)");
+                sb.AppendLine("  (@Ids udtt_Ints READONLY)");
             }
             else if (primaryKey.DataType == "UNIQUEIDENTIFIER")
             {
-                sb.AppendLine("  (@Ids udtt_Uniqueidentifiers READONLY, @IsActive BIT = NULL)");
+                sb.AppendLine("  (@Ids udtt_Uniqueidentifiers READONLY)");
             }
             else if (primaryKey.DataType == "TINYINT")
             {
-                sb.AppendLine("  (@Ids udtt_TinyInts READONLY, @IsActive BIT = NULL)");
+                sb.AppendLine("  (@Ids udtt_TinyInts READONLY)");
             }
 
             sb.AppendLine("AS");
@@ -259,10 +259,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine("  SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;");
             sb.AppendLine();
 
-            sb.AppendLine("  IF @IsActive IS NULL");
-            sb.AppendLine($"    SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryKey.ColumnName}] IN (Select Id FROM @Ids);");
-            sb.AppendLine("  ELSE");
-            sb.AppendLine($"    SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryKey.ColumnName}] IN (Select Id FROM @Ids) AND IsActive = @IsActive;");
+            sb.AppendLine($" SELECT * FROM [{table.Schema}].[{table.TableName}] WHERE [{primaryKey.ColumnName}] IN (Select Id FROM @Ids);");
 
             sb.Append("END");
 
