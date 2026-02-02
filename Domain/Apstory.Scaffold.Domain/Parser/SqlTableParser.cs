@@ -49,6 +49,7 @@ namespace Apstory.Scaffold.Domain.Parser
 
                 var columnLines = lines.Where(line => !line.Trim().Contains(" KEY ", StringComparison.InvariantCultureIgnoreCase) &&
                                                       !line.Trim().Contains(" UNIQUE ", StringComparison.InvariantCultureIgnoreCase) &&
+                                                      !line.Trim().StartsWith("CONSTRAINT ", StringComparison.InvariantCultureIgnoreCase) &&
                                                       !line.Trim().Equals("GO", StringComparison.InvariantCultureIgnoreCase))
                                        .Skip(1) //Skip first the Create Table line
                                        .Select(s => s.Trim('(', ')', ';', ','))
@@ -78,7 +79,7 @@ namespace Apstory.Scaffold.Domain.Parser
 
 
                 //var constraintRegex = new Regex(@"CONSTRAINT\s+\[([^\]]+)\]\s+(PRIMARY KEY|FOREIGN KEY).*?\(\[(\w+)\].*?REFERENCES\s+\[(\w+)\]\.\[(\w+)\]\s+\(\[(\w+)\]\))?");
-                var constraintRegex = new Regex(@"CONSTRAINT\s+\[([^\]]+)\]\s+(PRIMARY KEY|FOREIGN KEY).*?\(\[(\w+)\](.*)");
+                var constraintRegex = new Regex(@"CONSTRAINT\s+\[([^\]]+)\]\s+(PRIMARY KEY|FOREIGN KEY|CHECK).*?\(\[(\w+)\](.*)");
                 var foreignConstraintRegex = new Regex(@".*?REFERENCES\s+\[(\w+)\]\.\[(\w+)\]\s+\(\[(\w+)\]\)");
                 var constraintMatches = constraintRegex.Matches(cleanedSql);
                 foreach (Match match in constraintMatches)

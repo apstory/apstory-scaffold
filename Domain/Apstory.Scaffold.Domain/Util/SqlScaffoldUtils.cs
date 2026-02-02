@@ -36,6 +36,7 @@ namespace Apstory.Scaffold.Domain.Util
                 "varchar" => ", DbType.String",
                 "nvarchar" => ", DbType.String",
                 "datetime" => ", DbType.DateTime",
+                "date" => ", DbType.Date",
                 _ => throw new Exception($"ToDapperTypeString lookup exception: {sqlType}")
             };
         }
@@ -49,6 +50,7 @@ namespace Apstory.Scaffold.Domain.Util
                 "varchar" => "string",
                 "nvarchar" => "string",
                 "datetime" => "DateTime",
+                "date" => "DateOnly",
                 "float" => "double",
                 "decimal" => "decimal",
                 "bigint" => "long",

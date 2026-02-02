@@ -9,6 +9,7 @@ namespace Apstory.Scaffold.Model.Enum
     public enum ConstraintType
     {
         PrimaryKey,
-        ForeignKey
+        ForeignKey,
+        Check 
     }
 }
