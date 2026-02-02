@@ -50,7 +50,7 @@ namespace Apstory.Scaffold.Domain.Util
                 "varchar" => "string",
                 "nvarchar" => "string",
                 "datetime" => "DateTime",
-                "date" => "DateOnly",
+                "date" => "DateTime",
                 "float" => "double",
                 "decimal" => "decimal",
                 "bigint" => "long",
