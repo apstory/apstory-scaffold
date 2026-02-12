@@ -25,6 +25,7 @@ class Program
                 { "-delete", "delete" },
                 { "-sqlpush", "sqlpush" },
                 { "-sqldestination", "sqldestination" },
+                { "-blockondataloss", "blockondataloss" },
                 { "-variant", "variant" },
                 { "-help", "help" },
                 { "-tsModel", "tsmodel" },
@@ -40,8 +41,9 @@ class Program
                 Console.WriteLine("-namespace <name>        : Overrides the namespace for scaffolded code instead of fetching it from the sqlproj.");
                 Console.WriteLine("-regen <params>          : Executes immediate regeneration of files. Will regenerate all found schemas when no additional information supplied. Can specify a schema 'dbo', a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to regenerate. Can send multiple entities with ;");
                 Console.WriteLine("-delete <params>         : Deletes all generated entries. Can leave empty, specify a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to delete. Can send multiple entities with ;");
-                Console.WriteLine("-sqlpush <params>        : Pushes changes to database. Can leave empty to detect git changes. Specify a table 'dbo.tablename' (Limited Functionality), or a procedure 'dbo.zgen_procname' to push. Requires -sqldestination switch as well. Please note: No table updates are pushed, only the initial creates can be pushed. Can send multiple entities with ;");
+                Console.WriteLine("-sqlpush <params>        : Pushes changes to database. Can leave empty to detect git changes. Specify a table 'dbo.tablename', or a procedure 'dbo.zgen_procname' to push. Requires -sqldestination switch as well. Can send multiple entities with ;");
                 Console.WriteLine("-sqldestination <params> : Pushes changes to database. This is the connection string of the database.");
+                Console.WriteLine("-blockondataloss <bool>  : When pushing table updates, blocks changes that could cause data loss. Default: true. Set to false to allow potentially destructive changes.");
                 Console.WriteLine("-variant <params>        : Possible variants: 'merge' - merge will cause InsUpd procs to be generated with a merge statement that allows users to insert their own id on uniqueidentifiers");
                 Console.WriteLine("-tsmodel                 : Typescript model to read structure from.");
                 Console.WriteLine("-ngsearchpage            : Location to generate angular search page to.");
@@ -103,6 +105,7 @@ class Program
                     services.AddSingleton(csharpConfig);
                     services.AddSingleton<LockingService>();
                     services.AddSingleton<SqlTableCachingService>();
+                    services.AddSingleton<SqlTableUpdateService>();
 
                     services.AddTransient<SqlDalRepositoryScaffold>();
                     services.AddTransient<SqlScriptFileScaffold>();
