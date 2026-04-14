@@ -316,7 +316,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     else if (param.DataType.StartsWith("GEOGRAPHY", StringComparison.OrdinalIgnoreCase))
                     {
                         if (!useSeperateParameters)
-                            sb.AppendLine($"        dParams.Add(\"{param.ColumnName}\", $\"POINT({{{sqlStoredProcedure.TableName.ToCSharpSafeKeyword()}.{param.ColumnName.ToPascalCase()}.Long.ToString().Replace(\",\", \".\")}} {{{sqlStoredProcedure.TableName.ToCSharpSafeKeyword()}.{param.ColumnName.ToPascalCase()}.Lat.ToString().Replace(\",\", \".\")}} 4326)\");");
+                            sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", $\"POINT({{{sqlStoredProcedure.TableName.ToCSharpSafeKeyword()}.{param.ColumnName.ToPascalCase()}.Long.ToString().Replace(\",\", \".\")}} {{{sqlStoredProcedure.TableName.ToCSharpSafeKeyword()}.{param.ColumnName.ToPascalCase()}.Lat.ToString().Replace(\",\", \".\")}} 4326)\");");
                         else
                         {
                             sb.AppendLine($"    if ({param.ColumnName.ToCamelCase()} is not null)");
