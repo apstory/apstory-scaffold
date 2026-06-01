@@ -273,9 +273,9 @@ namespace Apstory.Scaffold.Domain.Scaffold
                     {
                         if (!string.IsNullOrEmpty(param.DefaultValue))
                             sb.Append(
-                                $"{param.ToCSharpTypeString(returnsData)} {param.ColumnName.ToCamelCase()} = \"{param.DefaultValue}\",");
+                                $"{param.ToCSharpTypeString(returnsData, GetModelNamespace(sqlStoredProcedure))} {param.ColumnName.ToCamelCase()} = \"{param.DefaultValue}\",");
                         else
-                            sb.Append($"{param.ToCSharpTypeString(returnsData)} {param.ColumnName.ToCamelCase()},");
+                            sb.Append($"{param.ToCSharpTypeString(returnsData, GetModelNamespace(sqlStoredProcedure))} {param.ColumnName.ToCamelCase()},");
                     }
                 }
 
@@ -312,7 +312,7 @@ namespace Apstory.Scaffold.Domain.Scaffold
                         sb.AppendLine($"    if ({sqlStoredProcedure.TableName.ToCSharpSafeKeyword()}.{param.ColumnName} != null)");
                     }
                     if (param.DataType.StartsWith("udtt", StringComparison.OrdinalIgnoreCase))
-                        sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {param.ColumnName.ToCamelCase()}.ToDataTable().AsTableValuedParameter(\"{sqlStoredProcedure.Schema}.{param.DataType}\"));");
+                        sb.AppendLine($"    dParams.Add(\"{param.ColumnName}\", {GetUserDefinedTableParameterValue(param, sqlStoredProcedure)});");
                     else if (param.DataType.StartsWith("GEOGRAPHY", StringComparison.OrdinalIgnoreCase))
                     {
                         if (!useSeperateParameters)
@@ -366,6 +366,18 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return $"I{sqlStoredProcedure.TableName.ToPascalCase()}Repository";
         }
 
+        private string GetUserDefinedTableParameterValue(SqlColumn param, SqlStoredProcedure sqlStoredProcedure)
+        {
+            var parameterValue = $"{param.ColumnName.ToCamelCase()}.ToDataTable()";
+            if (!param.IsScalarUserDefinedTableType() && param.UserDefinedTypeColumns.Any())
+            {
+                var columnNames = string.Join(", ", param.UserDefinedTypeColumns.Select(column => $"\"{column.ColumnName}\""));
+                parameterValue = $"{param.ColumnName.ToCamelCase()}.ToDataTable({columnNames})";
+            }
+
+            return $"{parameterValue}.AsTableValuedParameter(\"{param.ToTableValuedParameterTypeName(sqlStoredProcedure.Schema)}\")";
+        }
+
         private string GetClassName(SqlStoredProcedure sqlStoredProcedure)
         {
             return $"{sqlStoredProcedure.TableName.ToPascalCase()}Repository";
@@ -396,7 +408,84 @@ namespace Apstory.Scaffold.Domain.Scaffold
         private string GetDapperExtensionsFile()
         {
             var ns = _config.Namespaces.DalNamespace.ToSchemaString("dbo");
-            return "using System.ComponentModel;\r\nusing System.Data;\r\n\r\nnamespace " + ns + ".Utils\r\n{\r\n\tpublic static class DapperExtensions\r\n\t{\r\n\t\tpublic static DataTable ToDataTable<T>(this List<T> iList)\r\n\t\t{\r\n\t\t\tDataTable dataTable = new DataTable();\r\n\t\t\tdataTable.Columns.Add(\"Id\", typeof(T));\r\n\r\n\t\t\tforeach (T iListItem in iList)\r\n\t\t\t\tdataTable.Rows.Add(iListItem);\r\n\r\n\t\t\treturn dataTable;\r\n\t\t}\r\n\r\n\t\tpublic static DataTable ToDataTable<T>(this List<T> iList, string columnName)\r\n\t\t{\r\n\t\t\tDataTable dataTable = new DataTable();\r\n\t\t\tPropertyDescriptorCollection propertyDescriptorCollection =\r\n\t\t\t\tTypeDescriptor.GetProperties(typeof(T));\r\n\t\t\tfor (int i = 0; i < propertyDescriptorCollection.Count; i++)\r\n\t\t\t{\r\n\t\t\t\tPropertyDescriptor propertyDescriptor = propertyDescriptorCollection[i];\r\n\t\t\t\tType type = propertyDescriptor.PropertyType;\r\n\r\n\t\t\t\tif (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))\r\n\t\t\t\t\ttype = Nullable.GetUnderlyingType(type);\r\n\r\n\t\t\t\tif (propertyDescriptor.Name == columnName)\r\n\t\t\t\t{\r\n\t\t\t\t\tdataTable.Columns.Add(propertyDescriptor.Name, type);\r\n\t\t\t\t}\r\n\t\t\t}\r\n\t\t\tobject[] values = new object[propertyDescriptorCollection.Count];\r\n\t\t\tobject v = new object();\r\n\t\t\tforeach (T iListItem in iList)\r\n\t\t\t{\r\n\t\t\t\tfor (int i = 0; i < values.Length; i++)\r\n\t\t\t\t{\r\n\t\t\t\t\tvalues[i] = propertyDescriptorCollection[i].GetValue(iListItem);\r\n\t\t\t\t\tif (propertyDescriptorCollection[i].Name == columnName)\r\n\t\t\t\t\t{\r\n\t\t\t\t\t\tv = values[i];\r\n\t\t\t\t\t\tdataTable.Rows.Add(v);\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\t\t\t}\r\n\t\t\treturn dataTable;\r\n\t\t}\r\n\t}\r\n}";
+            return $$"""
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Linq;
+
+namespace {{ns}}.Utils
+{
+    public static class DapperExtensions
+    {
+        public static DataTable ToDataTable<T>(this List<T> iList)
+        {
+            if (ShouldCreateScalarDataTable(typeof(T)))
+            {
+                DataTable dataTable = new DataTable();
+                dataTable.Columns.Add("Id", Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T));
+
+                foreach (T iListItem in iList)
+                    dataTable.Rows.Add(iListItem);
+
+                return dataTable;
+            }
+
+            return iList.ToDataTable(GetColumnNames(typeof(T)));
+        }
+
+        public static DataTable ToDataTable<T>(this List<T> iList, params string[] columnNames)
+        {
+            DataTable dataTable = new DataTable();
+            PropertyDescriptorCollection propertyDescriptorCollection =
+                TypeDescriptor.GetProperties(typeof(T));
+
+            foreach (string columnName in columnNames)
+            {
+                PropertyDescriptor propertyDescriptor = propertyDescriptorCollection.Find(columnName, false);
+                if (propertyDescriptor is null)
+                    continue;
+
+                Type type = Nullable.GetUnderlyingType(propertyDescriptor.PropertyType) ?? propertyDescriptor.PropertyType;
+                dataTable.Columns.Add(propertyDescriptor.Name, type);
+            }
+
+            foreach (T iListItem in iList)
+            {
+                object[] values = new object[dataTable.Columns.Count];
+                for (int i = 0; i < dataTable.Columns.Count; i++)
+                    values[i] = propertyDescriptorCollection[dataTable.Columns[i].ColumnName].GetValue(iListItem);
+
+                dataTable.Rows.Add(values);
+            }
+
+            return dataTable;
+        }
+
+        private static string[] GetColumnNames(Type type)
+        {
+            return TypeDescriptor.GetProperties(type)
+                .Cast<PropertyDescriptor>()
+                .Select(property => property.Name)
+                .ToArray();
+        }
+
+        private static bool ShouldCreateScalarDataTable(Type type)
+        {
+            Type nonNullableType = Nullable.GetUnderlyingType(type) ?? type;
+            return nonNullableType.IsPrimitive
+                || nonNullableType == typeof(string)
+                || nonNullableType == typeof(Guid)
+                || nonNullableType == typeof(decimal)
+                || nonNullableType == typeof(DateTime)
+                || nonNullableType == typeof(DateTimeOffset)
+                || nonNullableType == typeof(TimeSpan)
+                || nonNullableType == typeof(byte[]);
+        }
+    }
+}
+""";
         }
     }
 }

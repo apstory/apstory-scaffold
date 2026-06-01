@@ -191,7 +191,7 @@ namespace Apstory.Scaffold.App.Worker
                     string sqlProcDefinition = FileUtils.SafeReadAllText(filePath);
                     Logger.LogDebug($"Read [{fileName}]");
 
-                    var sqlStoredProcedureInfo = SqlProcedureParser.Parse(sqlProcDefinition);
+                    var sqlStoredProcedureInfo = SqlProcedureParser.Parse(sqlProcDefinition, filePath);
                     Logger.LogDebug($"Parsed [{fileName}]");
 
                     var tableName = fileName.Replace("zgen_", string.Empty).Split("_")[0];
