@@ -58,7 +58,7 @@ namespace Apstory.Scaffold.VisualStudio
 
             try
             {
-                var solutionDirectory = GetSolutionDirectory();
+                var solutionDirectory = GetConfiguredWorkingDirectoryOrFallback(GetSolutionDirectory());
                 Log($"Executing Code Scaffold in {solutionDirectory} using {this.config.SqlDestination}");
 
                 // Run the process on a background thread
@@ -110,7 +110,7 @@ namespace Apstory.Scaffold.VisualStudio
             try
             {
                 var activeDocPath = GetActiveDocumentPath();
-                var workingDirectory = FindClosestSolutionFolder(activeDocPath);
+                var workingDirectory = GetConfiguredWorkingDirectoryOrFallback(FindClosestSolutionFolder(activeDocPath));
                 var fileName = Path.GetFileName(activeDocPath);
                 if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
                 {
@@ -172,7 +172,7 @@ namespace Apstory.Scaffold.VisualStudio
             try
             {
                 var activeDocPath = GetActiveDocumentPath();
-                var workingDirectory = FindClosestSolutionFolder(activeDocPath);
+                var workingDirectory = GetConfiguredWorkingDirectoryOrFallback(FindClosestSolutionFolder(activeDocPath));
                 var fileName = Path.GetFileName(activeDocPath);
                 if (!fileName.EndsWith(".sql", StringComparison.OrdinalIgnoreCase))
                 {
@@ -345,7 +345,7 @@ namespace Apstory.Scaffold.VisualStudio
             try
             {
                 var selectedPaths = GetSelectedItemPaths();
-                var workingDirectory = FindClosestSolutionFolder(selectedPaths.First());
+                var workingDirectory = GetConfiguredWorkingDirectoryOrFallback(FindClosestSolutionFolder(selectedPaths.First()));
                 List<string> toUpdate = new List<string>();
                 foreach (var path in selectedPaths)
                 {
@@ -415,7 +415,7 @@ namespace Apstory.Scaffold.VisualStudio
 
             try
             {
-                var workingDirectory = FindClosestSolutionFolder(selectedPaths.First());
+                var workingDirectory = GetConfiguredWorkingDirectoryOrFallback(FindClosestSolutionFolder(selectedPaths.First()));
                 List<string> toScaffold = new List<string>();
                 foreach (var path in selectedPaths)
                 {
@@ -472,7 +472,7 @@ namespace Apstory.Scaffold.VisualStudio
         {
             await this.LoadConfigAsync();
             var selectedPaths = GetSelectedItemPaths();
-            var workingDirectory = FindClosestSolutionFolder(selectedPaths.First());
+            var workingDirectory = GetConfiguredWorkingDirectoryOrFallback(FindClosestSolutionFolder(selectedPaths.First()));
 
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (isSqlDeleting)
@@ -560,6 +560,21 @@ namespace Apstory.Scaffold.VisualStudio
 
             // Fallback to the root directory if no solution folder is found
             return GetSolutionDirectory();
+        }
+
+        private string GetConfiguredWorkingDirectoryOrFallback(string fallbackWorkingDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(this.config?.WorkingDirectory))
+                return fallbackWorkingDirectory;
+
+            var configuredWorkingDirectory = this.config.WorkingDirectory;
+            if (!Path.IsPathRooted(configuredWorkingDirectory))
+                configuredWorkingDirectory = Path.Combine(GetSolutionDirectory(), configuredWorkingDirectory);
+
+            if (!Directory.Exists(configuredWorkingDirectory))
+                throw new DirectoryNotFoundException($"Configured WorkingDirectory does not exist: {configuredWorkingDirectory}");
+
+            return configuredWorkingDirectory;
         }
     }
 }

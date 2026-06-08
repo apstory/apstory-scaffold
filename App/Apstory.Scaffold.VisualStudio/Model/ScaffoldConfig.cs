@@ -2,6 +2,7 @@
 {
     public class ScaffoldConfig
     {
+        public string WorkingDirectory { get; set; }
         public string Namespace { get; set; }
         public string SqlProject { get; set; }
         public string SqlDestination { get; set; }
