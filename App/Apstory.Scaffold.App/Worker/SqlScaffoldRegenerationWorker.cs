@@ -3,6 +3,7 @@ using Apstory.Scaffold.Domain.Scaffold;
 using Apstory.Scaffold.Domain.Service;
 using Apstory.Scaffold.Domain.Util;
 using Apstory.Scaffold.Model.Config;
+using Apstory.Scaffold.Model.Sql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
@@ -210,14 +211,12 @@ namespace Apstory.Scaffold.App.Worker
                 var tableName = fileName.Replace("zgen_", string.Empty).Split("_")[0];
                 var directory = Directory.GetParent(Path.GetDirectoryName(storedProcedurePath));
                 var tablePath = Path.Combine(directory.FullName, "Tables", $"{tableName}.sql");
-                var sqlTableInfo = _sqlTableCachingService.GetCachedTable(tablePath);
 
                 var repoResult = await _sqlDalRepositoryScaffold.GenerateCode(sqlStoredProcedureInfo);
                 await _sqlDalRepositoryInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
                 var domainResult = await _sqlDomainServiceScaffold.GenerateCode(sqlStoredProcedureInfo);
                 await _sqlDomainServiceInterfaceScaffold.GenerateCode(sqlStoredProcedureInfo);
-                await _sqlForeignDomainServiceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedureInfo);
-                await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedureInfo);
+                await GenerateForeignDomainServiceCode(tablePath, sqlStoredProcedureInfo);
 
                 if (repoResult == Model.Enum.ScaffoldResult.Created)
                     await _sqlDalRepositoryServiceCollectionExtensionScaffold.GenerateCode(sqlStoredProcedureInfo);
@@ -231,6 +230,19 @@ namespace Apstory.Scaffold.App.Worker
             }
 
             Logger.LogInfo($"[DONE Stored Procedure] {storedProcedurePath}");
+        }
+
+        private async Task GenerateForeignDomainServiceCode(string tablePath, SqlStoredProcedure sqlStoredProcedure)
+        {
+            if (!File.Exists(tablePath) && sqlStoredProcedure.HasCustomReturnType())
+            {
+                Logger.LogWarn($"[Skipped Foreign Service] Table file not found for custom return type procedure {sqlStoredProcedure.Schema}.{sqlStoredProcedure.StoredProcedureName}: {tablePath}");
+                return;
+            }
+
+            var sqlTableInfo = _sqlTableCachingService.GetCachedTable(tablePath);
+            await _sqlForeignDomainServiceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedure);
+            await _sqlForeignDomainServiceInterfaceScaffold.GenerateCode(sqlTableInfo, sqlStoredProcedure);
         }
     }
 }
