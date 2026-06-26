@@ -61,6 +61,7 @@ namespace Apstory.Scaffold.Domain.Util
                 return false;
 
             if (column.DataType.Equals("udtt_ints", StringComparison.OrdinalIgnoreCase) ||
+                column.DataType.Equals("udtt_bigints", StringComparison.OrdinalIgnoreCase) ||
                 column.DataType.Equals("udtt_tinyints", StringComparison.OrdinalIgnoreCase) ||
                 column.DataType.Equals("udtt_uniqueidentifiers", StringComparison.OrdinalIgnoreCase))
                 return true;
@@ -122,6 +123,7 @@ namespace Apstory.Scaffold.Domain.Util
                 return column.DataType.ToLowerInvariant() switch
                 {
                     "udtt_ints" => "List<int>",
+                    "udtt_bigints" => "List<long>",
                     "udtt_tinyints" => "List<byte>",
                     "udtt_uniqueidentifiers" => "List<Guid>",
                     _ => $"List<{ToScalarCSharpTypeString(column.UserDefinedTypeColumns[0].DataType)}>"

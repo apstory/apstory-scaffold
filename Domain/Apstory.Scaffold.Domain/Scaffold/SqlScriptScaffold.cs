@@ -72,6 +72,13 @@ namespace Apstory.Scaffold.Domain.Scaffold
 
             }
 
+            var udttBigIntsPath = Path.Combine(typesDirectory, "udtt_BigInts.sql");
+            if (!File.Exists(udttBigIntsPath))
+            {
+                FileUtils.WriteTextAndDirectory(udttBigIntsPath, $"CREATE TYPE [{sqlTable.Schema}].[udtt_BigInts] AS TABLE ([Id] BIGINT NULL);");
+                results.Add(new ScaffoldFileResult(ScaffoldResult.Created, udttBigIntsPath));
+            }
+
             var udttUniqueIdentifiersPath = Path.Combine(typesDirectory, "udtt_Uniqueidentifiers.sql");
             if (!File.Exists(udttUniqueIdentifiersPath))
             {

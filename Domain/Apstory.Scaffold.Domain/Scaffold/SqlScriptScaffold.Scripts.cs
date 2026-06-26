@@ -240,17 +240,25 @@ namespace Apstory.Scaffold.Domain.Scaffold
             sb.AppendLine($"CREATE   PROCEDURE [{table.Schema}].[zgen_{table.TableName}_GetBy{primaryKey.ColumnName}s]");
 
             // Generate procedure parameters for the UDTT
-            if (primaryKey.DataType == "INT")
+            if (primaryKey.DataType.Equals("INT", StringComparison.OrdinalIgnoreCase))
             {
                 sb.AppendLine("  (@Ids udtt_Ints READONLY)");
             }
-            else if (primaryKey.DataType == "UNIQUEIDENTIFIER")
+            else if (primaryKey.DataType.Equals("UNIQUEIDENTIFIER", StringComparison.OrdinalIgnoreCase))
             {
                 sb.AppendLine("  (@Ids udtt_Uniqueidentifiers READONLY)");
             }
-            else if (primaryKey.DataType == "TINYINT")
+            else if (primaryKey.DataType.Equals("TINYINT", StringComparison.OrdinalIgnoreCase))
             {
                 sb.AppendLine("  (@Ids udtt_TinyInts READONLY)");
+            }
+            else if (primaryKey.DataType.Equals("BIGINT", StringComparison.OrdinalIgnoreCase))
+            {
+                sb.AppendLine("  (@Ids udtt_BigInts READONLY)");
+            }
+            else
+            {
+                throw new NotSupportedException($"Unable to generate a GetBy{primaryKey.ColumnName}s procedure for table {table.Schema}.{table.TableName}: primary key type '{primaryKey.DataType}' is not supported.");
             }
 
             sb.AppendLine("AS");
