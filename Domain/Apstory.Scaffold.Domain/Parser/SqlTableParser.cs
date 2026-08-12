@@ -80,7 +80,7 @@ namespace Apstory.Scaffold.Domain.Parser
 
                 //var constraintRegex = new Regex(@"CONSTRAINT\s+\[([^\]]+)\]\s+(PRIMARY KEY|FOREIGN KEY).*?\(\[(\w+)\].*?REFERENCES\s+\[(\w+)\]\.\[(\w+)\]\s+\(\[(\w+)\]\))?");
                 var constraintRegex = new Regex(@"CONSTRAINT\s+\[([^\]]+)\]\s+(PRIMARY KEY|FOREIGN KEY|CHECK).*?\(\[(\w+)\](.*)");
-                var foreignConstraintRegex = new Regex(@".*?REFERENCES\s+\[(\w+)\]\.\[(\w+)\]\s+\(\[(\w+)\]\)");
+                var foreignConstraintRegex = new Regex(@".*?REFERENCES\s+\[(\w+)\]\.\[(\w+)\]\s*\(\[(\w+)\]\)");
                 var constraintMatches = constraintRegex.Matches(cleanedSql);
                 foreach (Match match in constraintMatches)
                 {
