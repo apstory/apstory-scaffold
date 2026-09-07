@@ -26,7 +26,10 @@ namespace Apstory.Scaffold.Domain.Parser
             sqlStoredProcedure.Schema = fileNameRx.Groups[1].Value;
             sqlStoredProcedure.StoredProcedureName = fileNameRx.Groups[2].Value;
             sqlStoredProcedure.TableName = fileNameRx.Groups[2].Value.Replace("zgen_", "").Split("_")[0].ToPascalCase();
-            var parameters = Regex.Split(fileNameRx.Groups[3].Value.Trim().Trim('(', ')'), @",(?![^(]*\))"); //Split commas that are NOT inside parentheses
+            var paramsBlock = fileNameRx.Groups[3].Value.Trim();
+            if (paramsBlock.StartsWith('(') && paramsBlock.EndsWith(')'))
+                paramsBlock = paramsBlock[1..^1].Trim(); //Strip only the single outer pair wrapping the whole parameter list, not parens belonging to a type e.g. nvarchar(255)
+            var parameters = Regex.Split(paramsBlock, @",(?![^(]*\))"); //Split commas that are NOT inside parentheses
 
             sqlStoredProcedure.Parameters = new List<SqlColumn>();
             for (var i = 0; i < parameters.Length; i++)
