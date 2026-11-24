@@ -223,6 +223,16 @@ namespace Apstory.Scaffold.Domain.Scaffold
             return sb.ToString();
         }
 
+        private static readonly string[] SupportedPrimaryKeyIdsTypes = { "INT", "UNIQUEIDENTIFIER", "TINYINT", "BIGINT" };
+
+        public bool SupportsGetByPrimaryKeyIds(SqlTable table, out string dataType)
+        {
+            var primaryKeyConstraint = table.Constraints.FirstOrDefault(c => c.ConstraintType == Model.Enum.ConstraintType.PrimaryKey);
+            var primaryKey = table.Columns.FirstOrDefault(s => s.ColumnName == primaryKeyConstraint?.Column);
+            dataType = primaryKey?.DataType ?? "(none)";
+            return primaryKey != null && SupportedPrimaryKeyIdsTypes.Contains(primaryKey.DataType, StringComparer.OrdinalIgnoreCase);
+        }
+
         public string GenerateGetByPrimaryKeyIdsProcedure(SqlTable table)
         {
             var primaryKeyConstraint = table.Constraints.FirstOrDefault(c => c.ConstraintType == Model.Enum.ConstraintType.PrimaryKey);

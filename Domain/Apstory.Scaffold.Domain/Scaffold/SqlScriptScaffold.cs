@@ -30,7 +30,10 @@ namespace Apstory.Scaffold.Domain.Scaffold
             results.Add(await WriteScriptToDisk(sqlTable, GenerateDelHrdProcedure(sqlTable)));
             results.Add(await WriteScriptToDisk(sqlTable, GenerateDelSftProcedure(sqlTable)));
             results.Add(await WriteScriptToDisk(sqlTable, GenerateGetByIdProcedure(sqlTable)));
-            results.Add(await WriteScriptToDisk(sqlTable, GenerateGetByPrimaryKeyIdsProcedure(sqlTable)));
+            if (SupportsGetByPrimaryKeyIds(sqlTable, out var pkDataType))
+                results.Add(await WriteScriptToDisk(sqlTable, GenerateGetByPrimaryKeyIdsProcedure(sqlTable)));
+            else
+                Logger.LogWarn($"Skipping GetByIds procedure for {sqlTable.Schema}.{sqlTable.TableName}: primary key type '{pkDataType}' is not supported.");
 
             if (sqlTable.Constraints.Any(s => s.ConstraintType == Model.Enum.ConstraintType.ForeignKey))
             {
