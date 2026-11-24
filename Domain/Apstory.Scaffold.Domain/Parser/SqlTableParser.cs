@@ -49,7 +49,8 @@ namespace Apstory.Scaffold.Domain.Parser
 
                 var columnLines = lines.Where(line => !line.Trim().Contains(" KEY ", StringComparison.InvariantCultureIgnoreCase) &&
                                                       !line.Trim().Contains(" UNIQUE ", StringComparison.InvariantCultureIgnoreCase) &&
-                                                      !line.Trim().StartsWith("CONSTRAINT ", StringComparison.InvariantCultureIgnoreCase) &&
+                                                      !line.Trim().StartsWith("CONSTRAINT", StringComparison.InvariantCultureIgnoreCase) &&
+                                                      !Regex.IsMatch(line.Trim(), @"^CHECK\b", RegexOptions.IgnoreCase) &&
                                                       !line.Trim().Equals("GO", StringComparison.InvariantCultureIgnoreCase))
                                        .Skip(1) //Skip first the Create Table line
                                        .Select(s => s.Trim('(', ')', ';', ','))
@@ -70,6 +71,11 @@ namespace Apstory.Scaffold.Domain.Parser
                         DefaultValue = match.Groups[4].Value,
                         IsNullable = !match.Groups[5].Value.StartsWith("NOT", StringComparison.OrdinalIgnoreCase),
                     };
+
+                    // Ignore CHECK constraint fragments that slipped through (e.g. multi-line CHECK expressions)
+                    if (column.DataType.Equals("CHECK", StringComparison.OrdinalIgnoreCase) ||
+                        column.DataType.Equals("CONSTRAINT", StringComparison.OrdinalIgnoreCase))
+                        continue;
 
                     if (!string.IsNullOrEmpty(column.ColumnName))
                         table.Columns.Add(column);
